@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 
 from .forms import LoginForm, RegistrationForm
 
+
 def login(request):
     if request.method == "POST":
         login_form = LoginForm(request.POST)

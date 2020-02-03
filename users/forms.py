@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth.models import User
+from captcha.fields import CaptchaField
 import re
 
 
@@ -15,10 +16,10 @@ class RegistrationForm(forms.Form):
     password1 = forms.CharField(label='密码', widget=forms.PasswordInput)
     password2 = forms.CharField(label='密码验证', widget=forms.PasswordInput)
 
-    username.widget.attrs.update({'style': 'width:100%'})
-    email.widget.attrs.update({'style': 'width:100%'})
-    password1.widget.attrs.update({'style': 'width:100%'})
-    password2.widget.attrs.update({'style': 'width:100%'})
+    username.widget.attrs.update({'style': 'width:100%', 'placeholder': '用户名'})
+    email.widget.attrs.update({'style': 'width:100%', 'placeholder': '电子邮箱'})
+    password1.widget.attrs.update({'style': 'width:100%', 'placeholder': '密码'})
+    password2.widget.attrs.update({'style': 'width:100%', 'placeholder': '密码验证'})
 
     # 使用 clean类来定义用户验证规则
     def clean_username(self):
@@ -71,9 +72,11 @@ class LoginForm(forms.Form):
 
     username = forms.CharField(label='用户名', max_length=50)
     password = forms.CharField(label='密码', widget=forms.PasswordInput)
+    captcha = CaptchaField(label='验证码')
 
-    username.widget.attrs.update({'style': 'width:100%'})
-    password.widget.attrs.update({'style': 'width:100%'})
+    username.widget.attrs.update({'style': 'width:100%', 'placeholder': '用户名'})
+    password.widget.attrs.update({'style': 'width:100%', 'placeholder': '密码'})
+    captcha.widget.attrs.update({'style': 'width:55%'})
 
     # 使用 clean类来定义用户验证规则
     def clean_username(self):

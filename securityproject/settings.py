@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     #我的应用程序
     'capital_management.apps.CapitalManagementConfig',
     'users.apps.UsersConfig',
+    'captcha',
 ]
 
 MIDDLEWARE = [
