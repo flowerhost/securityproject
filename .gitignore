@@ -1,4 +1,3 @@
-# Created by .ignore support plugin (hsz.mobi)
 .DS_Store
 __pycache__/
 capital_management/__pycache__/
@@ -69,6 +68,6 @@ venv/lib/python3.6/site-packages/urllib3/
 venv/lib/python3.6/site-packages/zmq/
 venv/pip-selfcheck.json
 venv/pyvenv.cfg
-gitignore
+.gitignore
 .idea
 db.sqlite3
