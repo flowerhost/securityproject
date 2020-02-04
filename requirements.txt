@@ -20,4 +20,4 @@ simplejson==3.16.0
 six==1.12.0
 soupsieve==1.9.5
 tushare==1.2.48
-urllib3==1.24.1
+urllib3==1.24.2
