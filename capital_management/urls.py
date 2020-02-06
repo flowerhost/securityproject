@@ -12,6 +12,9 @@ urlpatterns = [
     path('index/', views.index, name='index'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('', views.dashboard, name='dashboard'),
+    path('broker/', views.broker, name='broker'),
+    path('addstock/',views.addstock, name='addstock'),
+
 
 
     # 更新所有的数据表

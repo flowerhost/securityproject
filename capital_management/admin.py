@@ -1,5 +1,6 @@
 from django.contrib import admin
-from django import forms
+# from django import forms
+from .form import StockDetailsForm
 
 from .models import CapitalAccount, StockDetails, Broker, Positions, Clearance, EventLog
 
@@ -59,17 +60,17 @@ class CapitalAccountAdmin(admin.ModelAdmin):
         return super(CapitalAccountAdmin, self).get_form(request, obj, **defaults)
 
 
-class StockDetailsForm(forms.ModelForm):
-    """设置表单编辑页面格式"""
+#class StockDetailsForm(forms.ModelForm):
+#    """设置表单编辑页面格式"""
     # 字段集分组显示
-
-
-    class Meta:
-        forms.model = StockDetails
+#
+#
+#    class Meta:
+#        forms.model = StockDetails
         # TODO: 完成表单个性化
-        widgets = {
-
-        }
+#        widgets = {
+#
+#        }
 
 
 class StockDetailsAdmin(admin.ModelAdmin):

@@ -63,7 +63,7 @@ class StockDetails(models.Model):
 
     price = models.FloatField(verbose_name='买卖价格')
     quantity = models.IntegerField(verbose_name='买卖数量')
-    transaction_date = models.DateTimeField(auto_now_add=True, verbose_name='交易日期')
+    transaction_date = models.DateField(verbose_name='交易日期')
     brokerage = models.FloatField(verbose_name='交易佣金')
     stamp_duty = models.FloatField(verbose_name='印花税')
     transfer_fee = models.FloatField(verbose_name='过户费')

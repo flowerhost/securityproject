@@ -52,15 +52,24 @@
                     </tr>
                 </thead>
                 <tbody>
+
                   {% for stock in stocks %}
                   <tr>
                     <td>{{ forloop.counter }}</td>
                     <td>{{ stock.name }}</td>
                     <td>{{ stock.code}}</td>
-                    <td>{{ stock.flag}}</td>
+                    {% if stock.flag == 'B' %}
+                        <td class="text-red">{{ stock.get_flag_display }}</td>
+                    {% elif stock.flag == 'S' %}
+                        <td class="text-green">{{ stock.get_flag_display }}</td>
+                    {% elif stock.flag == 'R' %}
+                        <td class="text-gray">{{ stock.get_flag_display }}</td>
+                    {% else %}
+                        <td class="text-blue">{{ stock.get_flag_display }}</td>
+                    {% endif %}
                     <td>{{ stock.price}}</td>
                     <td>{{ stock.quantity}}</td>
-                    <td>{{ stock.transaction_date }}</td>
+                    <td>{{ stock.transaction_date}}</td>
                     <td>{{ stock.transfer_fee}}</td>
                     <td>{{ stock.stamp_duty}}</td>
                     <td>{{ stock.brokerage}}</td>
@@ -70,6 +79,7 @@
                   {% empty %}
                     <tr>没有数据！</tr>
                   {% endfor %}
+
 
                 </tbody>
                 <tfoot>
@@ -93,7 +103,7 @@
 <!-- DataTables -->
 <script src="{% static 'AdminLTE-2.4.10/bower_components/datatables.net/js/jquery.dataTables.min.js' %}"></script>
 <script src="{% static 'AdminLTE-2.4.10/bower_components/datatables.net-bs/js/dataTables.bootstrap.min.js' %}"></script>
-
+<!-- page script -->
 <script>
     $(function () {
         $('#stocks_table').DataTable({

@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}券商维护{% endblock %}
+
+{% block css %}
+     <link rel="stylesheet" href="{% static 'AdminLTE-2.4.10/bower_components/datatables.net-bs/css/dataTables.bootstrap.min.css' %}">
+{% endblock %}
+
+{% block breadcrumb %}
+<!-- Content Header (Page header) -->
+    <section class="content-header">
+      <h1>
+        券商信息
+        <small>维护更新</small>
+      </h1>
+      <ol class="breadcrumb">
+        <li><a href="#"><i class="fa fa-dashboard"></i> 主页</a></li>
+        <li class="active">券商管理</li>
+      </ol>
+    </section>
+{% endblock %}
+
+{% block content %}
+
+   <!-- Main content -->
+   <section class="content">
+
+        <div class="col-md-10">
+          <!-- Horizontal Form -->
+          <div class="box box-info">
+            <div class="box-header with-border">
+              <h3 class="box-title">券商信息维护更新</h3>
+            </div>
+            <!-- /.box-header -->
+            <!-- form start -->
+            <form action="{% url 'capital_management:broker' %}" class="form-horizontal" method="post">
+              <div class="box-body">
+                  <!-- input 类实现的功能
+                <div class="form-group">
+                  <label for="brokername" class="col-sm-2 control-label">券商名</label>
+                  <div class="col-sm-10">
+                    <input type="text" class="form-control" id="brokername" placeholder="券商名">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="rate" class="col-sm-2 control-label">券商佣金</label>
+                  <div class="col-sm-10">
+                    <input type="text" onkeyup="this.value=this.value.replace(/\D/g,)" class="form-control" id="rate" placeholder="券商佣金">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="stamp_duty" class="col-sm-2 control-label">印花税</label>
+                  <div class="col-sm-10">
+                    <input type="text" onkeyup="this.value=this.value.replace(/\D/g,)" class="form-control" id="rate" placeholder="印花税">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="transfer_fee" class="col-sm-2 control-label">过户费</label>
+                  <div class="col-sm-10">
+                    <input type="text" onkeyup="this.value=this.value.replace(/\D/g,)" class="form-control" id="transfer_fee" placeholder="过户费">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="introduction" class="col-sm-2 control-label">简介</label>
+                  <div class="col-sm-10">
+                    <input type="text" class="form-control" id="introduction" placeholder="简介">
+                  </div>
+                </div>
+                  -->
+                  <!-- 使用BrokerForm表单类来自动生成页面 -->
+                <div class="form-group">
+                    <label for="name" class="col-sm-2 control-label">{{ broker_form.name.label_tag }}</label>
+                    <div class="col-sm-10" id="name">
+                        {{ broker_form.name }}
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="rate" class="col-sm-2 control-label">{{ broker_form.rate.label_tag }}</label>
+                    <div class="col-sm-10" id="rate">
+                        {{ broker_form.stamp_duty}}
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="stamp_duty" class="col-sm-2 control-label">{{ broker_form.stamp_duty.label_tag }}</label>
+                    <div class="col-sm-10" id="stamp_duty">
+                        {{ broker_form.rate }}
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="transfer_fee" class="col-sm-2 control-label">{{ broker_form.transfer_fee.label_tag }}</label>
+                    <div class="col-sm-10" id="transfer_fee">
+                        {{ broker_form.transfer_fee}}
+                    </div>
+                </div>
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="introduction" class="col-sm-2 control-label">{{ broker_form.introduction.label_tag }}</label>
+                    <div class="col-sm-10" id="introduction">
+                        {{ broker_form.introduction}}
+                    </div>
+                </div>
+
+              </div>
+              <!-- /.box-body -->
+              <div class="box-footer">
+                <button type="submit" class="btn btn-default">取消</button>
+                <button type="submit" class="btn btn-info pull-right">保存</button>
+              </div>
+              <!-- /.box-footer -->
+            </form>
+          </div>
+          <!-- /.box -->
+          <!-- general form elements disabled -->
+
+          <!-- /.box -->
+        </div>
+        <!--/.col (right) -->
+
+      <!-- /.row -->
+    </section>
+
+{% endblock %}
+
+{% block script %}
+
+<!-- DataTables -->
+<script src="{% static 'AdminLTE-2.4.10/bower_components/datatables.net/js/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'AdminLTE-2.4.10/bower_components/datatables.net-bs/js/dataTables.bootstrap.min.js' %}"></script>
+<!-- page script -->
+
+{% endblock %}
