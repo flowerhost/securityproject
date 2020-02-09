@@ -1,8 +1,6 @@
 """为应用程序users定义URLS模式"""
 
 from django.urls import path
-from django.urls import include
-
 from . import views
 
 app_name = 'users'

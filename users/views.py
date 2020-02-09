@@ -35,11 +35,11 @@ def register(request):
             email = register_form.cleaned_data['email']
             password = register_form.cleaned_data['password2']
 
-            user = User.objects.create_user(username=username, password=password, email=email)
+            User.objects.create_user(username=username, password=password, email=email)
 
-            # userprofile表的操作
-            #user_profile = UserProfile(user=user)
-            #user_profile.save()
+            # user profile表的操作
+            # user_profile = UserProfile(user=user)
+            # user_profile.save()
 
             return render(request, 'users/share.html', {'register_form': register_form})
     else:

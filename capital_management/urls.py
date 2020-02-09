@@ -10,13 +10,15 @@ app_name = 'capital_management'
 urlpatterns = [
     # 主页
     path('index/', views.index, name='index'),
+    # Dashboard
     path('dashboard/', views.dashboard, name='dashboard'),
     path('', views.dashboard, name='dashboard'),
+    # 券商维护
     path('broker/', views.broker, name='broker'),
-    path('addstock/',views.addstock, name='addstock'),
-
-
-
+    # 交易流水
+    path('trade/', views.trade, name='trade'),
+    # 资金账户总体情况展现
+    # TODO: 扩展账户结算功能
     # 更新所有的数据表
     path('prepare_data/', views.prepare_data, name='prepare_data'),
 ]

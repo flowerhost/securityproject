@@ -1,8 +1,8 @@
 from django.contrib import admin
 # from django import forms
-from .form import StockDetailsForm
+from .form import TradeListsForm
 
-from .models import CapitalAccount, StockDetails, Broker, Positions, Clearance, EventLog
+from .models import CapitalAccount, TradeLists, Broker, Positions, Clearance, EventLog
 
 
 # Register your models here.
@@ -21,7 +21,7 @@ admin.site = MyAdminSite(name='management')
 
 
 class BrokerAdmin(admin.ModelAdmin):
-    list_display = ['name', 'rate', 'stamp_duty', 'transfer_fee', 'date_added']
+    list_display = ['name', 'nick_name', 'rate', 'stamp_duty', 'transfer_fee', 'date_added']
 
 
 class PositionsAdmin(admin.ModelAdmin):
@@ -42,9 +42,9 @@ class PositionsInLine(admin.TabularInline):
 
 
 class CapitalAccountAdmin(admin.ModelAdmin):
-    list_display = ['name', 'broker', 'total_assets', 'market_capital', 'fund_balance', 'position_gain_loss',
+    list_display = ['broker', 'total_assets', 'market_capital', 'fund_balance', 'position_gain_loss',
                     'initial_capital', 'date']
-    list_filter = ['name', 'broker', 'date']
+    list_filter = ['broker', 'date']
 
     # 内联功能
     def get_form(self, request, obj=None, **args):
@@ -60,30 +60,18 @@ class CapitalAccountAdmin(admin.ModelAdmin):
         return super(CapitalAccountAdmin, self).get_form(request, obj, **defaults)
 
 
-#class StockDetailsForm(forms.ModelForm):
-#    """设置表单编辑页面格式"""
-    # 字段集分组显示
-#
-#
-#    class Meta:
-#        forms.model = StockDetails
-        # TODO: 完成表单个性化
-#        widgets = {
-#
-#        }
-
-
-class StockDetailsAdmin(admin.ModelAdmin):
+class TradeListsAdmin(admin.ModelAdmin):
     # 设置编辑表单页面格式
-    form = StockDetailsForm
+    form = TradeListsForm
     fieldsets = (
         ("交易对象", {"fields": [('name', 'code', 'account')]}),
-        ("交易详情", {"fields": ['flag', ('price', 'quantity', 'brokerage', 'stamp_duty', 'transfer_fee', 'total_capital')]})
+        ("交易详情", {"fields": ['flag', ('price', 'quantity', 'brokerage', 'stamp_duty', 'transfer_fee', 'total_fee',
+                                      'transaction_date', 'total_capital')]})
     )
 
     # 设置可显示字段
     list_display = ['name', 'code', 'colored_flag', 'price', 'quantity', 'transact_date', 'brokerage', 'stamp_duty',
-                    'transfer_fee', 'total_capital', 'account']
+                    'transfer_fee', 'total_fee', 'total_capital', 'account']
 
     # 设置那些字段可以进入编辑表单
     list_display_links = ['name', 'code']
@@ -113,7 +101,7 @@ class ClearanceAdmin(admin.ModelAdmin):
 
 
 admin.site.register(CapitalAccount, CapitalAccountAdmin)
-admin.site.register(StockDetails, StockDetailsAdmin)
+admin.site.register(TradeLists, TradeListsAdmin)
 admin.site.register(Broker, BrokerAdmin)
 admin.site.register(Positions, PositionsAdmin)
 admin.site.register(Clearance, ClearanceAdmin)

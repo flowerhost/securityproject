@@ -35,7 +35,7 @@
         <div class="box-body">
 
             <table id="stocks_table" class=" table table-bordered table-striped ">
-                <thead>
+                <thead class="text-center text-muted bg-gray-light">
                     <tr>
                         <th>序号</th>
                         <th>股票名称</th>
@@ -44,9 +44,7 @@
                         <th>成交价格</th>
                         <th>成交数量</th>
                         <th>成交日期</th>
-                        <th>交易费用</th>
-                        <th>印花税</th>
-                        <th>佣金</th>
+                        <th>费用总计</th>
                         <th>交易总额</th>
                         <th>交易账户</th>
                     </tr>
@@ -55,26 +53,96 @@
 
                   {% for stock in stocks %}
                   <tr>
-                    <td>{{ forloop.counter }}</td>
-                    <td>{{ stock.name }}</td>
-                    <td>{{ stock.code}}</td>
                     {% if stock.flag == 'B' %}
-                        <td class="text-red">{{ stock.get_flag_display }}</td>
+                        <td class="text-red bg-success">{{ forloop.counter }}</td>
                     {% elif stock.flag == 'S' %}
-                        <td class="text-green">{{ stock.get_flag_display }}</td>
+                        <td class="text-green bg-danger">{{ forloop.counter }}</td>
                     {% elif stock.flag == 'R' %}
-                        <td class="text-gray">{{ stock.get_flag_display }}</td>
+                        <td class="text-blue bg-gray-light">{{ forloop.counter }}</td>
                     {% else %}
-                        <td class="text-blue">{{ stock.get_flag_display }}</td>
+                        <td class="text-blue bg-warning">{{ forloop.counter }}</td>
                     {% endif %}
-                    <td>{{ stock.price}}</td>
-                    <td>{{ stock.quantity}}</td>
-                    <td>{{ stock.transaction_date}}</td>
-                    <td>{{ stock.transfer_fee}}</td>
-                    <td>{{ stock.stamp_duty}}</td>
-                    <td>{{ stock.brokerage}}</td>
-                    <td>{{ stock.total_capital }}</td>
-                    <td>{{ stock.account }}</td>
+                    {% if stock.flag == 'B' %}
+                        <td class="text-red bg-success">{{ stock.name }}</td>
+                    {% elif stock.flag == 'S' %}
+                        <td class="text-green bg-danger">{{ stock.name }}</td>
+                    {% elif stock.flag == 'R' %}
+                        <td class="text-blue bg-gray-light">{{ stock.name }}</td>
+                    {% else %}
+                        <td class="text-blue bg-warning">{{ stock.name }}</td>
+                    {% endif %}
+                    {% if stock.flag == 'B' %}
+                        <td class="text-red bg-success">{{ stock.code }}</td>
+                    {% elif stock.flag == 'S' %}
+                        <td class="text-green bg-danger">{{ stock.code }}</td>
+                    {% elif stock.flag == 'R' %}
+                        <td class="text-blue bg-gray-light">{{ stock.code }}</td>
+                    {% else %}
+                        <td class="text-blue bg-warning">{{ stock.code }}</td>
+                    {% endif %}
+                    {% if stock.flag == 'B' %}
+                        <td class="text-red bg-success">{{ stock.get_flag_display }}</td>
+                    {% elif stock.flag == 'S' %}
+                        <td class="text-green bg-danger">{{ stock.get_flag_display }}</td>
+                    {% elif stock.flag == 'R' %}
+                        <td class="text-blue bg-gray-light">{{ stock.get_flag_display }}</td>
+                    {% else %}
+                        <td class="text-blue bg-warning">{{ stock.get_flag_display }}</td>
+                    {% endif %}
+                    {% if stock.flag == 'B' %}
+                        <td class="text-red bg-success">{{ stock.price }}</td>
+                    {% elif stock.flag == 'S' %}
+                        <td class="text-green bg-danger">{{ stock.price }}</td>
+                    {% elif stock.flag == 'R' %}
+                        <td class="text-blue bg-gray-light">{{ stock.price }}</td>
+                    {% else %}
+                        <td class="text-blue bg-warning">{{ stock.price }}</td>
+                    {% endif %}
+                    {% if stock.flag == 'B' %}
+                        <td class="text-red bg-success">{{ stock.quantity }}</td>
+                    {% elif stock.flag == 'S' %}
+                        <td class="text-green bg-danger">{{ stock.quantity }}</td>
+                    {% elif stock.flag == 'R' %}
+                        <td class="text-blue bg-gray-light">{{ stock.quantity }}</td>
+                    {% else %}
+                        <td class="text-blue bg-warning">{{ stock.quantity }}</td>
+                    {% endif %}
+                    {% if stock.flag == 'B' %}
+                        <td class="text-red bg-success">{{ stock.transaction_date }}</td>
+                    {% elif stock.flag == 'S' %}
+                        <td class="text-green bg-danger">{{ stock.transaction_date }}</td>
+                    {% elif stock.flag == 'R' %}
+                        <td class="text-blue bg-gray-light">{{ stock.transaction_date }}</td>
+                    {% else %}
+                        <td class="text-blue bg-warning">{{ stock.transaction_date }}</td>
+                    {% endif %}
+                    {% if stock.flag == 'B' %}
+                        <td class="text-red bg-success">{{ stock.total_fee }}</td>
+                    {% elif stock.flag == 'S' %}
+                        <td class="text-green bg-danger">{{ stock.total_fee }}</td>
+                    {% elif stock.flag == 'R' %}
+                        <td class="text-blue bg-gray-light">{{ stock.total_fee }}</td>
+                    {% else %}
+                        <td class="text-blue bg-warning">{{ stock.total_fee }}</td>
+                    {% endif %}
+                    {% if stock.flag == 'B' %}
+                        <td class="text-red text-bold bg-success"><em>{{ stock.total_capital }}</em></td>
+                    {% elif stock.flag == 'S' %}
+                        <td class="text-yellow bg-danger">{{ stock.total_capital }}</td>
+                    {% elif stock.flag == 'R' %}
+                        <td class="text-red text-bold bg-gray-light"><em>{{ stock.total_capital }}</em></td>
+                    {% else %}
+                        <td class="text-yellow bg-warning">{{ stock.total_capital }}</td>
+                    {% endif %}
+                    {% if stock.flag == 'B' %}
+                        <td class="text-red bg-success">{{ stock.account }}</td>
+                    {% elif stock.flag == 'S' %}
+                        <td class="text-green bg-danger">{{ stock.account }}</td>
+                    {% elif stock.flag == 'R' %}
+                        <td class="text-blue bg-gray-light">{{ stock.account }}</td>
+                    {% else %}
+                        <td class="text-blue bg-warning">{{ stock.account }}</td>
+                    {% endif %}
                   </tr>
                   {% empty %}
                     <tr>没有数据！</tr>
