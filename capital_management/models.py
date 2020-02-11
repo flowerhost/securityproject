@@ -30,7 +30,7 @@ class Broker(models.Model):
 class CapitalAccount(models.Model):
     """证券资金账户"""
 
-    # name = models.CharField(max_length=80, unique=True, verbose_name='账户名称')
+    name = models.CharField(max_length=80, verbose_name='账户名称')  # name = Broker.nick_name
     broker = models.ForeignKey(Broker, on_delete=models.CASCADE, verbose_name='证券公司')
 
     total_assets = models.FloatField(verbose_name='总资产')
@@ -115,7 +115,7 @@ class Positions(models.Model):
     name = models.CharField(max_length=20, verbose_name='股票名称')
     code = models.CharField(max_length=10, verbose_name='股票代码')
 
-    date = models.DateTimeField(verbose_name='结算日期')
+    date = models.DateField(verbose_name='结算日期')
 
     cost = models.FloatField(verbose_name='成本价')
     amount = models.FloatField(verbose_name='持股数量')

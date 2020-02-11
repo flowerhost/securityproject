@@ -19,6 +19,7 @@ urlpatterns = [
     path('trade/', views.trade, name='trade'),
     # 资金账户总体情况展现
     # TODO: 扩展账户结算功能
+    path('balance/', views.balance, name='balance'),
     # 更新所有的数据表
     path('prepare_data/', views.prepare_data, name='prepare_data'),
 ]

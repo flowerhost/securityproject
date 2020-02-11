@@ -1,4 +1,4 @@
-from .models import Broker, TradeLists, CapitalAccount
+from .models import Broker, TradeLists, CapitalAccount, Positions
 from django.forms import ModelForm
 
 
@@ -23,3 +23,10 @@ class AccountForm(ModelForm):
         model = CapitalAccount
 
         fields = ['total_assets', 'market_capital', 'fund_balance', 'position_gain_loss', 'initial_capital']
+
+class PositionsForm(ModelForm):
+    """持仓情况表单"""
+    class Meta:
+        model  = Positions
+
+        fields = ['name', 'code', 'cost', 'amount', 'market_value', 'gain_loss', 'account']
