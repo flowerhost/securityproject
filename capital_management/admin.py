@@ -2,7 +2,7 @@ from django.contrib import admin
 # from django import forms
 from .form import TradeListsForm
 
-from .models import CapitalAccount, TradeLists, Broker, Positions, Clearance, EventLog
+from .models import CapitalAccount, TradeLists, Broker, TradeDailyReport, Clearance, EventLog
 
 
 # Register your models here.
@@ -24,26 +24,25 @@ class BrokerAdmin(admin.ModelAdmin):
     list_display = ['name', 'nick_name', 'rate', 'stamp_duty', 'transfer_fee', 'date_added']
 
 
-class PositionsAdmin(admin.ModelAdmin):
+class TradeDailyReportAdmin(admin.ModelAdmin):
     list_display = ['name', 'code', 'cost', 'amount', 'date']
     list_filter = ['name']
 
 
-class PositionsInLine(admin.TabularInline):
+class TradeDailyReportInLine(admin.TabularInline):
     """
     设置内联：CapitalAccount和Positions
     TabularInLine: 表格式
     StackedInLine: 默认，竖列显示
     """
-    model = Positions
+    model = TradeDailyReport
     extra = 1
     fields = ['name', 'code', 'cost', 'amount', 'date']
     # TODO: 内联模版 template= 'capital_management/admin/***.html 从而实现定制化显示
 
 
 class CapitalAccountAdmin(admin.ModelAdmin):
-    list_display = ['broker', 'total_assets', 'market_capital', 'fund_balance', 'position_gain_loss',
-                    'initial_capital', 'date']
+    list_display = ['broker', 'initial_capital', 'date']
     list_filter = ['broker', 'date']
 
     # 内联功能
@@ -51,8 +50,8 @@ class CapitalAccountAdmin(admin.ModelAdmin):
         defaults = {}
         if obj is not None:
 
-            if len(Positions.objects.filter(id=obj.id)) == 1:
-                self.inlines = [PositionsInLine]  # 设置内联
+            if len(TradeDailyReport.objects.filter(id=obj.id)) == 1:
+                self.inlines = [TradeDailyReportInLine]  # 设置内联
             else:
                 self.inlines = []
 
@@ -103,6 +102,6 @@ class ClearanceAdmin(admin.ModelAdmin):
 admin.site.register(CapitalAccount, CapitalAccountAdmin)
 admin.site.register(TradeLists, TradeListsAdmin)
 admin.site.register(Broker, BrokerAdmin)
-admin.site.register(Positions, PositionsAdmin)
+admin.site.register(TradeDailyReport, TradeDailyReportAdmin)
 admin.site.register(Clearance, ClearanceAdmin)
 admin.site.register(EventLog)

@@ -15,7 +15,7 @@ class Broker(models.Model):
     stamp_duty = models.FloatField(verbose_name='印花税费')
     transfer_fee = models.FloatField(verbose_name='过户费')
 
-    date_added = models.DateTimeField(auto_now_add=True, verbose_name='注册时间')
+    date_added = models.DateField(auto_now_add=True, verbose_name='注册时间')
     introduction = models.TextField(verbose_name='简介')
 
     def __str__(self):
@@ -32,6 +32,22 @@ class CapitalAccount(models.Model):
 
     name = models.CharField(max_length=80, verbose_name='账户名称')  # name = Broker.nick_name
     broker = models.ForeignKey(Broker, on_delete=models.CASCADE, verbose_name='证券公司')
+    initial_capital = models.FloatField(verbose_name='期初资产')
+
+    date = models.DateField(verbose_name='创建日期')
+
+    class Meta:
+        verbose_name = '证券资金账户'
+        verbose_name_plural = '证券资金账户'
+
+    def __str__(self):
+        return self.name
+
+
+class AccountSurplus(models.Model):
+    """账户盈余表"""
+
+    name = models.ForeignKey(CapitalAccount, on_delete=models.DO_NOTHING, verbose_name='账户名称')
 
     total_assets = models.FloatField(verbose_name='总资产')
     market_capital = models.FloatField(verbose_name='总市值')
@@ -39,14 +55,30 @@ class CapitalAccount(models.Model):
     position_gain_loss = models.FloatField(verbose_name='浮动盈亏')
     initial_capital = models.FloatField(verbose_name='期初资产')
 
-    date = models.DateField(verbose_name='记账日')
+    date = models.DateField(verbose_name='结算日期')
 
     class Meta:
-        verbose_name = '券资金账户'
-        verbose_name_plural = '证券资金账户'
+        verbose_name = '账户盈余表'
+        verbose_name_plural = '账户盈余表'
 
     def __str__(self):
 
+        return self.position_gain_loss
+
+
+class StockBasis(models.Model):
+    """股票基本情况"""
+    name = models.CharField(max_length=80, verbose_name='股票名称')
+    code = models.CharField(max_length=10, verbose_name='股票代码')
+
+    industry_group = models.CharField(max_length=80, verbose_name='所属行业')
+    is_HS = models.CharField(max_length=10, verbose_name='沪深通标的')
+    area = models.CharField(max_length=20, verbose_name='地区')
+
+    market = models.CharField(max_length=20, verbose_name='市场类型')
+    exchange = models.CharField(max_length=20, verbose_name='交易所代码')
+
+    def __str__(self):
         return self.name
 
 
@@ -109,18 +141,19 @@ class TradeLists(models.Model):
         return self.name
 
 
-class Positions(models.Model):
-    """持仓情况表"""
+class TradeDailyReport(models.Model):
+    """交易日报表"""
 
-    name = models.CharField(max_length=20, verbose_name='股票名称')
+    name = models.CharField(max_length=80, verbose_name='股票名称')
     code = models.CharField(max_length=10, verbose_name='股票代码')
+
+    cost = models.FloatField(verbose_name='成本价')
+    amount = models.FloatField(verbose_name='买卖股数')
+    total_capital = models.FloatField(verbose_name='交易总额')
+    total_fee = models.FloatField(verbose_name='手续费')
 
     date = models.DateField(verbose_name='结算日期')
 
-    cost = models.FloatField(verbose_name='成本价')
-    amount = models.FloatField(verbose_name='持股数量')
-    market_value = models.FloatField(verbose_name='股票市值')
-    gain_loss = models.FloatField(verbose_name='浮动盈亏')
     account = models.ForeignKey(CapitalAccount, on_delete=models.CASCADE, verbose_name='证券账户')
     update_flag = models.BooleanField(verbose_name='数据更新标志')
 
@@ -231,16 +264,3 @@ class MyStockLists(models.Model):
     reversal_month_line = models.BinaryField(verbose_name='月线反转')
 
     trade_date = models.DateField(verbose_name='交易日期')
-
-
-class StockBasis(models.Model):
-    """股票基本情况"""
-    name = models.CharField(max_length=80, verbose_name='股票名称')
-    code = models.CharField(max_length=10, verbose_name='股票代码')
-
-    industry_group = models.CharField(max_length=80, verbose_name='所属行业')
-    is_HS = models.CharField(max_length=10, verbose_name='沪深通标的')
-    area = models.CharField(max_length=20, verbose_name='地区')
-
-    market = models.CharField(max_length=20, verbose_name='市场类型')
-    exchange = models.CharField(max_length=20, verbose_name='交易所代码')
