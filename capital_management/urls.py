@@ -19,6 +19,6 @@ urlpatterns = [
     path('trade/', views.trade, name='trade'),
     # 资金账户总体情况展现
     path('account/', views.account, name='account'),
-    # TODO: 扩展账户结算功能
+    #  系统结算功能
     path('balance/', views.balance, name='balance'),
 ]

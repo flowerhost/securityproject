@@ -63,15 +63,8 @@ class ModelTest(TestCase):
         Broker.objects.create(id=4, name='恒泰证券', rate=0.0001, stamp_duty=2, transfer_fee=2,
                               date_added='2020-01-01', introduction='CANSLIM', nick_name='success')
 
-        CapitalAccount.objects.create(id=1, name='CANSLIM', total_assets=20, market_capital=33, fund_balance=32,
-                                      position_gain_loss=45, initial_capital=21, date="2020-2-9", broker_id=2)
-        CapitalAccount.objects.create(id=2, total_assets=20, market_capital=33, fund_balance=32,
-                                      position_gain_loss=45, initial_capital=21, date="2020-2-8", broker_id=2)
-
-        CapitalAccount.objects.create(id=3, total_assets=20, market_capital=33, fund_balance=32,
-                                      position_gain_loss=45, initial_capital=21, date="2020-2-9", broker_id=2)
-        CapitalAccount.objects.create(id=4, total_assets=20, market_capital=33, fund_balance=32,
-                                      position_gain_loss=45, initial_capital=21, date="2020-2-9", broker_id=2)
+        CapitalAccount.objects.create(id=1, name='CANSLIM',initial_capital=21, date="2020-2-9", broker_id=2)
+        CapitalAccount.objects.create(id=2, name='CANSLIM', initial_capital=21, date="2020-2-9", broker_id=2)
 
         TradeLists.objects.create(id=1, name='华兰生物', code='603596.SH', flag='B', price=24, quantity=1000,
                                   transaction_date='2020-02-10', brokerage=21, stamp_duty=0, transfer_fee=30,
@@ -111,54 +104,56 @@ class ModelTest(TestCase):
     def test_event_models(self, columns=None):
 
         """2020-2-12 TradeDailyReport表单 账户结算功能"""
-        recorder_num = TradeDailyReport.objects.aggregate(
-            position_num=Count('id'))  # 作用---定位TradeDailyReport的最近的一条记录id号
-        position_id = recorder_num['position_num']
+        # recorder_num = TradeDailyReport.objects.aggregate(
+        #     position_num=Count('id'))  # 作用---定位TradeDailyReport的最近的一条记录id号
+        # position_id = recorder_num['position_num']
+        #
+        # account_num = CapitalAccount.objects.aggregate(account_num=Count('id'))  # 作用---获得资金账户数量
+        #
+        # end_date = datetime.datetime.today().strftime("%Y-%m-%d")  # django的语句比较简洁
+        # start_date = TradeDailyReport.objects.get(id=position_id).date
+        # date_delta = 50
+        # # tushare接口获取交易日历
+        # # calendar = pro.query('trade_cal', start_date=start_date, end_date=end_date, is_open=1, fields=['cal_date'])
+        # # 获得上一交易日的持仓情况
+        #
+        # # 当前结算日的股票交易汇总数据
+        #
+        # # 两者之和生成新的结算数据
+        # for account_id in range(account_num['account_num'] + 1):
+        #     position_date = start_date
+        #     history_TradeDailyReport_date = position_date - datetime.timedelta(days=1)
+        #     for _ in range(date_delta):  # 以交易日期轮询
+        #         # 获得上一日持仓情况
+        #         history_data = TradeDailyReport.objects.filter(date=history_TradeDailyReport_date,
+        #                                                        account_id=account_id).values('cost', 'amount')
+        #         # 检索当日结算值
+        #         new_value_set = TradeLists.objects.filter(transaction_date=position_date, account_id=account_id) \
+        #             .annotate(amount_num=Sum('quantity'), capital_num=Sum('total_capital'))
+        #
+        #         position_date = position_date + datetime.timedelta(days=1)
+        #
+        # # new_TradeDailyReport_id = TradeDailyReport.objects.aggregate(TradeDailyReport_num=Count('id'))  # 作用---获得资金账户数量
+        # # new_value_set = TradeLists.objects.filter(transaction_date='2020-02-03', account_id=1).values(
+        # #     'name').annotate(amount_num=Sum('quantity'),
+        # #                      capital_num=Sum('total_capital'))
+        # # 获取当日结算股票的历史持仓情况
+        # history_data = TradeDailyReport.objects.filter(date='2017-1-1', account_id=1).values('code', 'name', 'date',
+        #                                                                                      'cost', 'amount',
+        #                                                                                      'account_id',
+        #                                                                                      'update_flag')
+        # new_value_set = TradeLists.objects.filter(transaction_date='2020-02-10', account_id=1).values('code').annotate(
+        #     amount=Sum('quantity'),
+        #     cost=Sum('total_capital'))
+        #
+        # # df = pd.DataFrame(new_data, columns={'code', 'name', 'date', 'cost', 'amount', 'account_id', 'update_flag'})
+        #
+        # # combine = df['cost', 'amount'].groupby(df['code']).sum()
+        #
+        # # 检索当日结算值
+        open_date = TradeDailyReport.objects.earliest()
+        self.assertEqual(open_date.date, 3)
 
-        account_num = CapitalAccount.objects.aggregate(account_num=Count('id'))  # 作用---获得资金账户数量
-
-        end_date = datetime.datetime.today().strftime("%Y-%m-%d")  # django的语句比较简洁
-        start_date = TradeDailyReport.objects.get(id=position_id).date
-        date_delta = 50
-        # tushare接口获取交易日历
-        # calendar = pro.query('trade_cal', start_date=start_date, end_date=end_date, is_open=1, fields=['cal_date'])
-        # 获得上一交易日的持仓情况
-
-        # 当前结算日的股票交易汇总数据
-
-        # 两者之和生成新的结算数据
-        for account_id in range(account_num['account_num'] + 1):  # TODO： 以新变化的资金账户轮询来替换range(2),构造一个列表，来轮询？，
-            position_date = start_date
-            history_TradeDailyReport_date = position_date - datetime.timedelta(days=1)
-            for _ in range(date_delta):  # 以交易日期轮询
-                # 获得上一日持仓情况
-                history_data = TradeDailyReport.objects.filter(date=history_TradeDailyReport_date,
-                                                               account_id=account_id).values('cost', 'amount')
-                # 检索当日结算值
-                new_value_set = TradeLists.objects.filter(transaction_date=position_date, account_id=account_id) \
-                    .annotate(amount_num=Sum('quantity'), capital_num=Sum('total_capital'))
-
-                position_date = position_date + datetime.timedelta(days=1)
-
-        # new_TradeDailyReport_id = TradeDailyReport.objects.aggregate(TradeDailyReport_num=Count('id'))  # 作用---获得资金账户数量
-        # new_value_set = TradeLists.objects.filter(transaction_date='2020-02-03', account_id=1).values(
-        #     'name').annotate(amount_num=Sum('quantity'),
-        #                      capital_num=Sum('total_capital'))
-        # 获取当日结算股票的历史持仓情况
-        history_data = TradeDailyReport.objects.filter(date='2017-1-1', account_id=1).values('code', 'name', 'date',
-                                                                                             'cost', 'amount',
-                                                                                             'account_id',
-                                                                                             'update_flag')
-        new_value_set = TradeLists.objects.filter(transaction_date='2020-02-10', account_id=1).values('code').annotate(
-            amount=Sum('quantity'),
-            cost=Sum('total_capital'))
-
-        # df = pd.DataFrame(new_data, columns={'code', 'name', 'date', 'cost', 'amount', 'account_id', 'update_flag'})
-
-        # combine = df['cost', 'amount'].groupby(df['code']).sum()
-
-        # 检索当日结算值
-        self.assertEqual(new_value_set[0], 3)
 
         """2020-2-11"""
         # new_value_set = TradeLists.objects.filter(transaction_date='2020-02-03', account_id=2).values(

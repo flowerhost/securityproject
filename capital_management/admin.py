@@ -38,7 +38,7 @@ class TradeDailyReportInLine(admin.TabularInline):
     model = TradeDailyReport
     extra = 1
     fields = ['name', 'code', 'cost', 'amount', 'date']
-    # TODO: 内联模版 template= 'capital_management/admin/***.html 从而实现定制化显示
+    # 内联模版 template= 'capital_management/admin/***.html 从而实现定制化显示
 
 
 class CapitalAccountAdmin(admin.ModelAdmin):
@@ -95,7 +95,7 @@ class TradeListsAdmin(admin.ModelAdmin):
 
 
 class ClearanceAdmin(admin.ModelAdmin):
-    list_display = ['name', 'code', 'open_date', 'clear_date', 'invest_capital', 'accumulate_capital', 'fee',
+    list_display = ['name', 'code', 'open_date', 'clear_date', 'invest_capital', 'fee',
                     'profit', 'account']
 
 

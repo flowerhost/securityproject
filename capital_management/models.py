@@ -53,7 +53,9 @@ class AccountSurplus(models.Model):
     market_capital = models.FloatField(verbose_name='总市值')
     fund_balance = models.FloatField(verbose_name='资金余额')
     position_gain_loss = models.FloatField(verbose_name='浮动盈亏')
+    total_fee = models.FloatField(verbose_name='总费用')
     initial_capital = models.FloatField(verbose_name='期初资产')
+    update_flag = models.BooleanField(verbose_name='数据更新标识')
 
     date = models.DateField(verbose_name='结算日期')
 
@@ -161,6 +163,8 @@ class TradeDailyReport(models.Model):
         verbose_name = '股票持仓情况'
         verbose_name_plural = '股票持仓情况'
 
+        get_latest_by = 'date'  # 用于获得最早和最新的记录
+
 
 class Clearance(models.Model):
     """清仓股票情况表"""
@@ -168,12 +172,10 @@ class Clearance(models.Model):
     name = models.CharField(max_length=80, verbose_name='股票名称')
     code = models.CharField(max_length=10, verbose_name='股票代码')
 
-    open_date = models.DateTimeField(verbose_name='建仓日期')
-    clear_date = models.DateTimeField(verbose_name='清仓日期')
+    open_date = models.DateField(verbose_name='建仓日期')
+    clear_date = models.DateField(verbose_name='清仓日期')
 
-    invest_capital = models.FloatField(verbose_name='累计投入金额')
-    accumulate_capital = models.FloatField(verbose_name='累计收入金额')
-
+    invest_capital = models.FloatField(verbose_name='累计投入金额')  # 买入投入
     fee = models.FloatField(verbose_name='交易费用')
     profit = models.FloatField(verbose_name='盈亏金额')
 

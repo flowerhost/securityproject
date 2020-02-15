@@ -207,6 +207,11 @@
 
               }
         });
+        $('#stocks_table').colResizable({
+            liveDrag: true, //实现实时拖动，可看见拖动轨迹
+            draggingClass: "dragging", //防止拖动出现虚标线
+            resizeMode: 'flex',
+        });
     });
 
 </script>
