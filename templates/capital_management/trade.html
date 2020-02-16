@@ -38,11 +38,20 @@
                 {% csrf_token %}
                 <!-- 使用StocksDetailsForm表单类来自动生成页面 -->
                 <div class="form-group">
+                     <!--信息源头-->
+                     <div class="form-group">
+                    <label for="trade_resource" class="col-sm-2 control-label">{{ trade_form.trade_resource.label_tag }}</label>
+                    <div class="col-sm-10" id="trade_resource">
+                        {{ trade_form.trade_resource}}
+                    </div>
+                </div>
+                </div>
+                <div class="form-group">
                      <!--交易日期-->
                      <div class="form-group">
-                    <label for="transaction_date" class="col-sm-2 control-label">{{ trade_form.transaction_date.label_tag }}</label>
-                    <div class="col-sm-10" id="transaction_date">
-                        {{ trade_form.transaction_date}}
+                    <label for="date" class="col-sm-2 control-label">{{ trade_form.date.label_tag }}</label>
+                    <div class="col-sm-10" id="date">
+                        {{ trade_form.date}}
                     </div>
                 </div>
                      <!--交易账户-->

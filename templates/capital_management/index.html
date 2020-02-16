@@ -108,13 +108,13 @@
                         <td class="text-blue bg-warning">{{ stock.quantity }}</td>
                     {% endif %}
                     {% if stock.flag == 'B' %}
-                        <td class="text-red bg-success">{{ stock.transaction_date }}</td>
+                        <td class="text-red bg-success">{{ stock.date }}</td>
                     {% elif stock.flag == 'S' %}
-                        <td class="text-green bg-danger">{{ stock.transaction_date }}</td>
+                        <td class="text-green bg-danger">{{ stock.date }}</td>
                     {% elif stock.flag == 'R' %}
-                        <td class="text-blue bg-gray-light">{{ stock.transaction_date }}</td>
+                        <td class="text-blue bg-gray-light">{{ stock.date }}</td>
                     {% else %}
-                        <td class="text-blue bg-warning">{{ stock.transaction_date }}</td>
+                        <td class="text-blue bg-warning">{{ stock.date }}</td>
                     {% endif %}
                     {% if stock.flag == 'B' %}
                         <td class="text-red bg-success">{{ stock.total_fee }}</td>

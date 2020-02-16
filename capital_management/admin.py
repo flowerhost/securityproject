@@ -65,23 +65,23 @@ class TradeListsAdmin(admin.ModelAdmin):
     fieldsets = (
         ("交易对象", {"fields": [('name', 'code', 'account')]}),
         ("交易详情", {"fields": ['flag', ('price', 'quantity', 'brokerage', 'stamp_duty', 'transfer_fee', 'total_fee',
-                                      'transaction_date', 'total_capital')]})
+                                      'date', 'total_capital')]})
     )
 
     # 设置可显示字段
-    list_display = ['name', 'code', 'colored_flag', 'price', 'quantity', 'transact_date', 'brokerage', 'stamp_duty',
+    list_display = ['name', 'code', 'colored_flag', 'price', 'quantity', 'date', 'brokerage', 'stamp_duty',
                     'transfer_fee', 'total_fee', 'total_capital', 'account']
 
     # 设置那些字段可以进入编辑表单
     list_display_links = ['name', 'code']
 
-    # 筛选器
-    list_filter = ['transaction_date', 'name', 'code']  # 过滤栏
-    search_fields = ['name', 'code']  # 搜索栏
-    date_hierarchy = 'transaction_date'  # 时间分层
-
-    # ordering设置默认排序，负号表示降序排序
-    ordering = ['-transaction_date']
+    # # 筛选器
+    # list_filter = ['date', 'name', 'code']  # 过滤栏
+    # search_fields = ['name', 'code']  # 搜索栏
+    # date_hierarchy = 'date'  # 时间分层
+    #
+    # # ordering设置默认排序，负号表示降序排序
+    # ordering = ['-date']
 
     # list_per_page 设置每页显示多少条记录，默认 100条
     list_per_page = 50

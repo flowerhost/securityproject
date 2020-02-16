@@ -14,7 +14,7 @@ class TradeListsForm(ModelForm):
     class Meta:
         model = TradeLists
 
-        fields = ['code', 'flag', 'price', 'quantity', 'transaction_date', 'account']
+        fields = ['trade_resource', 'code', 'flag', 'price', 'quantity', 'date', 'account']
 
 
 class CapitalAccountForm(ModelForm):

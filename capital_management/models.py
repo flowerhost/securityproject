@@ -26,6 +26,8 @@ class Broker(models.Model):
         verbose_name = '证券公司'
         verbose_name_plural = '证券公司'
 
+        get_latest_by = 'date_added'
+
 
 class CapitalAccount(models.Model):
     """证券资金账户"""
@@ -39,6 +41,7 @@ class CapitalAccount(models.Model):
     class Meta:
         verbose_name = '证券资金账户'
         verbose_name_plural = '证券资金账户'
+        get_latest_by = 'date'
 
     def __str__(self):
         return self.name
@@ -47,7 +50,7 @@ class CapitalAccount(models.Model):
 class AccountSurplus(models.Model):
     """账户盈余表"""
 
-    name = models.ForeignKey(CapitalAccount, on_delete=models.DO_NOTHING, verbose_name='账户名称')
+    account = models.ForeignKey(CapitalAccount, on_delete=models.DO_NOTHING, verbose_name='账户名称')
 
     total_assets = models.FloatField(verbose_name='总资产')
     market_capital = models.FloatField(verbose_name='总市值')
@@ -62,6 +65,8 @@ class AccountSurplus(models.Model):
     class Meta:
         verbose_name = '账户盈余表'
         verbose_name_plural = '账户盈余表'
+
+        get_latest_by = 'date'
 
     def __str__(self):
 
@@ -97,19 +102,19 @@ class TradeLists(models.Model):
         (u'T', u'融券卖出'),
     )
     flag = models.CharField(max_length=20, verbose_name='操作方向', choices=OPERATION_CHOICE)
-
+    # 基础数据
     price = models.FloatField(verbose_name='买卖价格')
     quantity = models.IntegerField(verbose_name='买卖数量')
-    transaction_date = models.DateField(verbose_name='交易日期')
+    date = models.DateField(verbose_name='交易日期')
     brokerage = models.FloatField(verbose_name='交易佣金')
     stamp_duty = models.FloatField(verbose_name='印花税')
     transfer_fee = models.FloatField(verbose_name='过户费')
     total_fee = models.FloatField(verbose_name='手续费用')
     total_capital = models.FloatField(verbose_name='交易总额')
-
     clear_flag = models.CharField(max_length=100, verbose_name='清仓标识---清仓股票表_ID')
-
     account = models.ForeignKey(CapitalAccount, on_delete=models.CASCADE, verbose_name='交易账户')
+    # 操作依据，即信息源头
+    trade_resource = models.CharField(max_length=80, verbose_name='信息源头')
 
     # 设置操作方向字段颜色，区别 普通买入、普通卖出、融资买入、融资卖出
     def colored_flag(self):
@@ -128,19 +133,42 @@ class TradeLists(models.Model):
         )
     colored_flag.short_description = u"操作方向"
 
-    # 设置后台管理的时间格式：2019年9月23日 而不是2019年9月23日 20：33
-    def transact_date(self):
-        return self.transaction_date.strftime('%Y年%m月%d日')
-
-    transact_date.short_description = u'交易日期'
-    transact_date.admin_order_field = '-transaction_date'
+    # # 设置后台管理的时间格式：2019年9月23日 而不是2019年9月23日 20：33
+    # # def date(self):
+    # #     return self.date.strftime('%Y年%m月%d日')
+    #
+    # date.short_description = u'交易日期'
+    # date.admin_order_field = '-transaction_date'
 
     class Meta:
         verbose_name = '股票交易记录'
         verbose_name_plural = '股票交易记录'
 
+        get_latest_by = 'date'  # 获取最新的 or 最早的记录
+
     def __str__(self):
         return self.name
+
+
+class TradePerformance(models.Model):
+    """交易表现评价表"""
+    trade = models.ForeignKey(TradeLists, on_delete=models.CASCADE, verbose_name='股票代码')
+    close = models.FloatField(verbose_name='收盘价')
+    moving_average = models.FloatField(verbose_name='十日均线')
+    high_price = models.FloatField(verbose_name='最高价')
+    low_price = models.FloatField(verbose_name='最低价')
+    boll_up = models.FloatField(verbose_name='BOLL线上轨')
+    boo_down = models.FloatField(verbose_name='BOLL线下轨')
+    performance = models.FloatField(verbose_name='买卖评价')  # 每笔交易的评价
+    trade_performance = models.FloatField(verbose_name='总体评价')  # 清仓后股票的交易总体评价
+
+    date = models.DateField(verbose_name='评价日期')
+
+    class Meta:
+        verbose_name = '交易表现评价'
+        verbose_name_plural = '交易表现评价'
+
+        get_latest_by = 'date'  # 定位最新记录
 
 
 class TradeDailyReport(models.Model):

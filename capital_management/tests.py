@@ -67,38 +67,38 @@ class ModelTest(TestCase):
         CapitalAccount.objects.create(id=2, name='CANSLIM', initial_capital=21, date="2020-2-9", broker_id=2)
 
         TradeLists.objects.create(id=1, name='华兰生物', code='603596.SH', flag='B', price=24, quantity=1000,
-                                  transaction_date='2020-02-10', brokerage=21, stamp_duty=0, transfer_fee=30,
+                                  date='2020-02-10', brokerage=21, stamp_duty=0, transfer_fee=30,
                                   total_fee=40, total_capital=24000, clear_flag=1, account_id=1)
         TradeLists.objects.create(id=2, name='华兰生物', code='603596.SH', flag='B', price=24, quantity=1000,
-                                  transaction_date='2020-02-10', brokerage=21, stamp_duty=0, transfer_fee=32,
+                                  date='2020-02-10', brokerage=21, stamp_duty=0, transfer_fee=32,
                                   total_fee=40, total_capital=24000, clear_flag=1, account_id=1)
         TradeLists.objects.create(id=3, name='伯特利', code='603596.SH', flag='B', price=24, quantity=1000,
-                                  transaction_date='2020-02-10', brokerage=21, stamp_duty=0, transfer_fee=27,
+                                  date='2020-02-10', brokerage=21, stamp_duty=0, transfer_fee=27,
                                   total_fee=40, total_capital=24000, clear_flag=1, account_id=1)
         TradeLists.objects.create(id=4, name='华兰生物', code='000021.SZ', flag='B', price=24, quantity=1000,
-                                  transaction_date='2020-02-07', brokerage=21, stamp_duty=0, transfer_fee=34,
+                                  date='2020-02-07', brokerage=21, stamp_duty=0, transfer_fee=34,
                                   total_fee=40, total_capital=24000, clear_flag=1, account_id=3)
         TradeLists.objects.create(id=5, name='科技50', code='603596.SH', flag='B', price=24, quantity=1000,
-                                  transaction_date='2020-02-06', brokerage=21, stamp_duty=0, transfer_fee=23,
+                                  date='2020-02-06', brokerage=21, stamp_duty=0, transfer_fee=23,
                                   total_fee=40, total_capital=24000, clear_flag=1, account_id=2)
         TradeLists.objects.create(id=6, name='ETF500', code='603596.SH', flag='B', price=24, quantity=1000,
-                                  transaction_date='2020-02-05', brokerage=21, stamp_duty=0, transfer_fee=23,
+                                  date='2020-02-05', brokerage=21, stamp_duty=0, transfer_fee=23,
                                   total_fee=40, total_capital=24000, clear_flag=1, account_id=3)
         TradeLists.objects.create(id=7, name='广汇股份', code='603599.SH', flag='B', price=24, quantity=1000,
-                                  transaction_date='2020-02-28', brokerage=21, stamp_duty=0, transfer_fee=23,
+                                  date='2020-02-28', brokerage=21, stamp_duty=0, transfer_fee=23,
                                   total_fee=40, total_capital=24000, clear_flag=1, account_id=1)
         TradeLists.objects.create(id=8, name='千禾味业', code='603598.SH', flag='B', price=24, quantity=1000,
-                                  transaction_date='2020-02-16', brokerage=21, stamp_duty=0, transfer_fee=23,
+                                  date='2020-02-16', brokerage=21, stamp_duty=0, transfer_fee=23,
                                   total_fee=40, total_capital=24000, clear_flag=1, account_id=1)
         TradeLists.objects.create(id=9, name='千禾味业', code='603597.SH', flag='B', price=24, quantity=1000,
-                                  transaction_date='2020-02-16', brokerage=21, stamp_duty=0, transfer_fee=23,
+                                  date='2020-02-16', brokerage=21, stamp_duty=0, transfer_fee=23,
                                   total_fee=40, total_capital=24000, clear_flag=1, account_id=3)
 
         TradeDailyReport.objects.create(id=1, name='伯特利', code='603596.SH', date='2017-1-1', cost='100', amount='200',
                                         account_id=1, total_capital=10, total_fee=10,  update_flag=True)
-        TradeDailyReport.objects.create(id=2, name='0', code='0', date='2017-01-03', cost='0', amount='0',
-                                        account_id=1, total_capital=10, total_fee=10, update_flag=False)
-        TradeDailyReport.objects.create(id=3, name='0', code='0', date='2020-02-01', cost='0', amount='0',
+        TradeDailyReport.objects.create(id=2, name='0', code='000005.SZ', date='2017-01-03', cost='0', amount='0',
+                                        account_id=1, total_capital=10, total_fee=1002, update_flag=False)
+        TradeDailyReport.objects.create(id=3, name='0', code='000005.SZ', date='2020-02-01', cost='0', amount='0',
                                         account_id=1, total_capital=10, total_fee=10, update_flag=False)
 
     def test_event_models(self, columns=None):
@@ -128,13 +128,13 @@ class ModelTest(TestCase):
         #         history_data = TradeDailyReport.objects.filter(date=history_TradeDailyReport_date,
         #                                                        account_id=account_id).values('cost', 'amount')
         #         # 检索当日结算值
-        #         new_value_set = TradeLists.objects.filter(transaction_date=position_date, account_id=account_id) \
+        #         new_value_set = TradeLists.objects.filter(date=position_date, account_id=account_id) \
         #             .annotate(amount_num=Sum('quantity'), capital_num=Sum('total_capital'))
         #
         #         position_date = position_date + datetime.timedelta(days=1)
         #
         # # new_TradeDailyReport_id = TradeDailyReport.objects.aggregate(TradeDailyReport_num=Count('id'))  # 作用---获得资金账户数量
-        # # new_value_set = TradeLists.objects.filter(transaction_date='2020-02-03', account_id=1).values(
+        # # new_value_set = TradeLists.objects.filter(date='2020-02-03', account_id=1).values(
         # #     'name').annotate(amount_num=Sum('quantity'),
         # #                      capital_num=Sum('total_capital'))
         # # 获取当日结算股票的历史持仓情况
@@ -142,7 +142,7 @@ class ModelTest(TestCase):
         #                                                                                      'cost', 'amount',
         #                                                                                      'account_id',
         #                                                                                      'update_flag')
-        # new_value_set = TradeLists.objects.filter(transaction_date='2020-02-10', account_id=1).values('code').annotate(
+        # new_value_set = TradeLists.objects.filter(date='2020-02-10', account_id=1).values('code').annotate(
         #     amount=Sum('quantity'),
         #     cost=Sum('total_capital'))
         #
@@ -151,12 +151,13 @@ class ModelTest(TestCase):
         # # combine = df['cost', 'amount'].groupby(df['code']).sum()
         #
         # # 检索当日结算值
-        open_date = TradeDailyReport.objects.earliest()
-        self.assertEqual(open_date.date, 3)
+        # performance_data = TradeLists.objects.filter(date='2020-02-10').values('id', 'code', 'price', 'flag')
+        flag = TradeDailyReport.objects.filter(account_id=1, code='000005.SZ').latest().date
+        self.assertEqual(flag, 3)
 
 
         """2020-2-11"""
-        # new_value_set = TradeLists.objects.filter(transaction_date='2020-02-03', account_id=2).values(
+        # new_value_set = TradeLists.objects.filter(date='2020-02-03', account_id=2).values(
         #     'name').annotate(amount_num=Sum('quantity'), capital_num=Sum('total_capital'), )
         #
         # self.assertEqual(new_value_set[1]['name'], 3)
@@ -170,9 +171,9 @@ class ModelTest(TestCase):
         # for index, cal in cal_date.iterrows():
         #     p_date = (pd.to_datetime(cal["cal_date"])).strftime("%Y-%m-%d")
         #
-        #     amount = TradeLists.objects.filter(transaction_date=p_date).values('name').annotate(
+        #     amount = TradeLists.objects.filter(date=p_date).values('name').annotate(
         #         num_amount=Sum('quantity'))
-        #     p_name = TradeLists.objects.filter(transaction_date=p_date)
+        #     p_name = TradeLists.objects.filter(date=p_date)
 
         # result = CapitalAccount.objects.values('fund_balance').annotate(num_broker=Sum('fund_balance')).filter(
         # broker_id=2)
