@@ -44,7 +44,7 @@ import datetime
 # if os.environ.get('DJANGO_SETTINGS_MODULE'):
 #     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'securityproject.settings')
 
-from capital_management.models import Broker, CapitalAccount, TradeLists, TradeDailyReport
+from capital_management.models import Broker, CapitalAccount, TradeLists, TradeDailyReport, TradePerformance
 
 
 # class SimpleTest(TestCase):
@@ -101,7 +101,31 @@ class ModelTest(TestCase):
         TradeDailyReport.objects.create(id=3, name='0', code='000005.SZ', date='2020-02-01', cost='0', amount='0',
                                         account_id=1, total_capital=10, total_fee=10, update_flag=False)
 
+        TradePerformance.objects.create(id=1, close=60, moving_average=60, high_price=70, low_price=50, boll_up=66,
+                                        boo_down=54, performance=23, trade_performance=0, date='2020-02-03', trade_id=3)
+        TradePerformance.objects.create(id=2, close=60, moving_average=60, high_price=70, low_price=50, boll_up=66,
+                                        boo_down=54, performance=55, trade_performance=0, date='2020-02-03', trade_id=2)
+        TradePerformance.objects.create(id=3, close=60, moving_average=60, high_price=70, low_price=50, boll_up=66,
+                                        boo_down=54, performance=55, trade_performance=0, date='2020-02-03', trade_id=4)
+        TradePerformance.objects.create(id=4, close=60, moving_average=60, high_price=70, low_price=50, boll_up=66,
+                                        boo_down=54, performance=31, trade_performance=0, date='2020-02-03', trade_id=1)
+
     def test_event_models(self, columns=None):
+        """2020-02-18 多表组合查询功能"""
+
+        # performance_obj = TradePerformance.objects.get(trade_id=1)
+        #
+        # stock = performance_obj.trade.name
+        # stock_list = TradeLists.objects.values(
+        #     'account_id', 'code', 'name', 'price', 'flag', 'date', 'trade_resource', 'quantity', 'tradeperformance__close',
+        #     'tradeperformance__moving_average', 'tradeperformance__performance', 'tradeperformance__trade_performance')
+        #
+        # self.assertEqual(stock_list[10]['account_id'], 3)
+
+        """2020-02-18 for循环的简化"""
+        new_value_set = TradeLists.objects.filter(date__year='2020').values('date', 'account_id', 'code').annotate(fee=Sum('total_fee'))
+
+        self.assertEqual(new_value_set[2]['date'], 3)
 
         """2020-2-12 TradeDailyReport表单 账户结算功能"""
         # recorder_num = TradeDailyReport.objects.aggregate(
@@ -152,8 +176,7 @@ class ModelTest(TestCase):
         #
         # # 检索当日结算值
         # performance_data = TradeLists.objects.filter(date='2020-02-10').values('id', 'code', 'price', 'flag')
-        flag = TradeDailyReport.objects.filter(account_id=1, code='000005.SZ').latest().date
-        self.assertEqual(flag, 3)
+
 
 
         """2020-2-11"""

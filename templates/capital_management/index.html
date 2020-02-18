@@ -38,14 +38,17 @@
                 <thead class="text-center text-muted bg-gray-light">
                     <tr>
                         <th>序号</th>
+                        <th>信息源头</th>
                         <th>股票名称</th>
                         <th>股票代码</th>
                         <th>买卖标识</th>
                         <th>成交价格</th>
                         <th>成交数量</th>
                         <th>成交日期</th>
-                        <th>费用总计</th>
                         <th>交易总额</th>
+                        <th>收盘价格</th>
+                        <th>十日均线</th>
+                        <th>操作分值</th>
                         <th>交易账户</th>
                     </tr>
                 </thead>
@@ -61,6 +64,15 @@
                         <td class="text-blue bg-gray-light">{{ forloop.counter }}</td>
                     {% else %}
                         <td class="text-blue bg-warning">{{ forloop.counter }}</td>
+                    {% endif %}
+                    {% if stock.flag == 'B' %}
+                        <td class="text-red bg-success">{{ stock.trade_resource }}</td>
+                    {% elif stock.flag == 'S' %}
+                        <td class="text-green bg-danger">{{ stock.trade_resource }}</td>
+                    {% elif stock.flag == 'R' %}
+                        <td class="text-blue bg-gray-light">{{ stock.trade_resource }}</td>
+                    {% else %}
+                        <td class="text-blue bg-warning">{{ stock.trade_resource }}</td>
                     {% endif %}
                     {% if stock.flag == 'B' %}
                         <td class="text-red bg-success">{{ stock.name }}</td>
@@ -81,13 +93,13 @@
                         <td class="text-blue bg-warning">{{ stock.code }}</td>
                     {% endif %}
                     {% if stock.flag == 'B' %}
-                        <td class="text-red bg-success">{{ stock.get_flag_display }}</td>
+                        <td class="text-red bg-success">{{ stock.flag }}</td>
                     {% elif stock.flag == 'S' %}
-                        <td class="text-green bg-danger">{{ stock.get_flag_display }}</td>
+                        <td class="text-green bg-danger">{{ stock.flag }}</td>
                     {% elif stock.flag == 'R' %}
-                        <td class="text-blue bg-gray-light">{{ stock.get_flag_display }}</td>
+                        <td class="text-blue bg-gray-light">{{ stock.flag }}</td>
                     {% else %}
-                        <td class="text-blue bg-warning">{{ stock.get_flag_display }}</td>
+                        <td class="text-blue bg-warning">{{ stock.flag }}</td>
                     {% endif %}
                     {% if stock.flag == 'B' %}
                         <td class="text-red bg-success">{{ stock.price }}</td>
@@ -117,15 +129,6 @@
                         <td class="text-blue bg-warning">{{ stock.date }}</td>
                     {% endif %}
                     {% if stock.flag == 'B' %}
-                        <td class="text-red bg-success">{{ stock.total_fee }}</td>
-                    {% elif stock.flag == 'S' %}
-                        <td class="text-green bg-danger">{{ stock.total_fee }}</td>
-                    {% elif stock.flag == 'R' %}
-                        <td class="text-blue bg-gray-light">{{ stock.total_fee }}</td>
-                    {% else %}
-                        <td class="text-blue bg-warning">{{ stock.total_fee }}</td>
-                    {% endif %}
-                    {% if stock.flag == 'B' %}
                         <td class="text-red text-bold bg-success"><em>{{ stock.total_capital }}</em></td>
                     {% elif stock.flag == 'S' %}
                         <td class="text-yellow bg-danger">{{ stock.total_capital }}</td>
@@ -135,13 +138,40 @@
                         <td class="text-yellow bg-warning">{{ stock.total_capital }}</td>
                     {% endif %}
                     {% if stock.flag == 'B' %}
-                        <td class="text-red bg-success">{{ stock.account }}</td>
+                        <td class="text-red bg-success">{{ stock.tradeperformance__close }}</td>
                     {% elif stock.flag == 'S' %}
-                        <td class="text-green bg-danger">{{ stock.account }}</td>
+                        <td class="text-green bg-danger">{{ stock.tradeperformance__close }}</td>
                     {% elif stock.flag == 'R' %}
-                        <td class="text-blue bg-gray-light">{{ stock.account }}</td>
+                        <td class="text-blue bg-gray-light">{{ stock.tradeperformance__close }}</td>
                     {% else %}
-                        <td class="text-blue bg-warning">{{ stock.account }}</td>
+                        <td class="text-blue bg-warning">{{ stock.tradeperformance__close }}</td>
+                    {% endif %}
+                    {% if stock.flag == 'B' %}
+                        <td class="text-red bg-success">{{ stock.tradeperformance__moving_average }}</td>
+                    {% elif stock.flag == 'S' %}
+                        <td class="text-green bg-danger">{{ stock.tradeperformance__moving_average }}</td>
+                    {% elif stock.flag == 'R' %}
+                        <td class="text-blue bg-gray-light">{{ stock.tradeperformance__moving_average }}</td>
+                    {% else %}
+                        <td class="text-blue bg-warning">{{ stock.tradeperformance__moving_average }}</td>
+                    {% endif %}
+                    {% if stock.flag == 'B' %}
+                        <td class="text-red bg-success">{{ stock.tradeperformance__performance }}</td>
+                    {% elif stock.flag == 'S' %}
+                        <td class="text-green bg-danger">{{ stock.tradeperformance__performance }}</td>
+                    {% elif stock.flag == 'R' %}
+                        <td class="text-blue bg-gray-light">{{ stock.tradeperformance__performance }}</td>
+                    {% else %}
+                        <td class="text-blue bg-warning">{{ stock.tradeperformance__performance }}</td>
+                    {% endif %}
+                    {% if stock.flag == 'B' %}
+                        <td class="text-red bg-success">{{ stock.account__broker__capitalaccount__name }}</td>
+                    {% elif stock.flag == 'S' %}
+                        <td class="text-green bg-danger">{{ stock.account__broker__capitalaccount__name }}</td>
+                    {% elif stock.flag == 'R' %}
+                        <td class="text-blue bg-gray-light">{{ stock.account__broker__capitalaccount__name }}</td>
+                    {% else %}
+                        <td class="text-blue bg-warning">{{ stock.account__broker__capitalaccount__name }}</td>
                     {% endif %}
                   </tr>
                   {% empty %}
