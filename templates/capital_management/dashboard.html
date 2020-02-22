@@ -18,9 +18,96 @@
 {% endblock %}
 
 {% block content %}
+   <div class="col-md-6">
+    <!-- BAR CHART -->
+  <div class="box box-success">
 
+    <div class="box-header with-border">
+      <h3 class="box-title">证券资产统计(万元）：</h3>
+
+      <div class="box-tools pull-right">
+        <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i>
+        </button>
+        <button type="button" class="btn btn-box-tool" data-widget="remove"><i class="fa fa-times"></i></button>
+      </div>
+    </div>
+    <div class="box-body">
+        <div id="capital" style="width: 600px;height:400px;"></div>
+    </div>
+    <!-- /.box-body -->
+  </div>
+</div>
 {% endblock %}
 
 {% block script %}
+<script type="text/javascript" src="{% static 'AdminLTE-2.4.10/bower_components/echarts/dist/echarts.min.js' %}"></script>
 
+<script type="text/javascript">
+var dom = document.getElementById("capital");
+var myChart = echarts.init(dom);
+var app = {};
+option = null;
+
+setTimeout(function () {
+
+    option = {
+        legend: {},
+        tooltip: {
+            trigger: 'axis',
+            showContent: false
+        },
+        dataset: {
+            source: {{ total|safe }}  <!--需要修改匹配-->
+        },
+        xAxis: {type: 'category'},
+        yAxis: {gridIndex: 0},
+        grid: {top: '55%'},
+        series: [
+            {type: 'line', smooth: true, seriesLayoutBy: 'row'},
+            {type: 'line', smooth: true, seriesLayoutBy: 'row'},
+            {type: 'line', smooth: true, seriesLayoutBy: 'row'},
+            {type: 'line', smooth: true, seriesLayoutBy: 'row'},
+            {
+                type: 'pie',
+                id: 'pie',
+                radius: '30%',
+                center: ['50%', '25%'],
+                label: {
+                    formatter: '{b}: {@{{start_day|safe}}} ({d}%)'<!--需要修改匹配 2020-->
+                },
+                encode: {
+                    itemName: '日期',  <!-- 需要修改 -->
+                    value: '{{start_day|safe}}',   <!--需要修改匹配2020-->
+                    tooltip: '{{start_day|safe}}',  <!--需要修改匹配2020-->
+                }
+            }
+        ]
+    };
+
+    myChart.on('updateAxisPointer', function (event) {
+        var xAxisInfo = event.axesInfo[0];
+        if (xAxisInfo) {
+            var dimension = xAxisInfo.value + 1;
+            myChart.setOption({
+                series: {
+                    id: 'pie',
+                    label: {
+                        formatter: '{b}: {@[' + dimension + ']} ({d}%)'
+                    },
+                    encode: {
+                        value: dimension,
+                        tooltip: dimension
+                    }
+                }
+            });
+        }
+    });
+
+    myChart.setOption(option);
+
+});;
+if (option && typeof option === "object") {
+    myChart.setOption(option, true);
+}
+       </script>
 {% endblock %}

@@ -4,6 +4,7 @@ from django.test import TestCase
 
 import pandas as pd
 import tushare as ts
+import numpy as np
 
 from itertools import chain
 
@@ -44,7 +45,7 @@ import datetime
 # if os.environ.get('DJANGO_SETTINGS_MODULE'):
 #     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'securityproject.settings')
 
-from capital_management.models import Broker, CapitalAccount, TradeLists, TradeDailyReport, TradePerformance
+from capital_management.models import Broker, CapitalAccount, TradeLists, TradeDailyReport, TradePerformance, AccountSurplus
 
 
 # class SimpleTest(TestCase):
@@ -99,7 +100,7 @@ class ModelTest(TestCase):
         TradeDailyReport.objects.create(id=2, name='0', code='000005.SZ', date='2017-01-03', cost='0', amount='0',
                                         account_id=1, total_capital=10, total_fee=1002, update_flag=False)
         TradeDailyReport.objects.create(id=3, name='0', code='000005.SZ', date='2020-02-01', cost='0', amount='0',
-                                        account_id=1, total_capital=10, total_fee=10, update_flag=False)
+                                        account_id=1, total_capital=101, total_fee=10, update_flag=False)
 
         TradePerformance.objects.create(id=1, close=60, moving_average=60, high_price=70, low_price=50, boll_up=66,
                                         boo_down=54, performance=23, trade_performance=0, date='2020-02-03', trade_id=3)
@@ -110,9 +111,44 @@ class ModelTest(TestCase):
         TradePerformance.objects.create(id=4, close=60, moving_average=60, high_price=70, low_price=50, boll_up=66,
                                         boo_down=54, performance=31, trade_performance=0, date='2020-02-03', trade_id=1)
 
-    def test_event_models(self, columns=None):
-        """2020-02-18 多表组合查询功能"""
+        AccountSurplus.objects.create(id=1, total_assets=200000, market_capital=300001, fund_balance=1233,
+                                      position_gain_loss=5462, total_fee=12345, initial_capital=1, update_flag=True,
+                                      final_cost=100, date='2020-01-01', account_id=1)
+        AccountSurplus.objects.create(id=2, total_assets=203000, market_capital=300100, fund_balance=1234,
+                                      position_gain_loss=5632, total_fee=12345, initial_capital=1, update_flag=True,
+                                      final_cost=100, date='2020-01-11', account_id=1)
+        AccountSurplus.objects.create(id=3, total_assets=204000, market_capital=300100, fund_balance=1433,
+                                      position_gain_loss=542, total_fee=12345, initial_capital=1, update_flag=True,
+                                      final_cost=1002, date='2020-01-21', account_id=1)
+        AccountSurplus.objects.create(id=4, total_assets=200500, market_capital=310000, fund_balance=1833,
+                                      position_gain_loss=546, total_fee=12345, initial_capital=1, update_flag=True,
+                                      final_cost=103, date='2020-01-15', account_id=1)
 
+    def test_event_models(self, columns=None):
+        """2020-02-20 echarts 表数据结构"""
+        # 筛选一个月的数据
+        data_date = ['product']
+        assets = ['总资产']
+        fund_balance = ['余额']
+        gain_loss = ['浮盈亏']
+        total = []
+        total_data = AccountSurplus.objects.filter(date__gte='2020-01-01').values(
+            'total_assets', 'market_capital', 'fund_balance', 'position_gain_loss', 'date')
+        for data in total_data:
+            new_date = data['date']
+            data_date.append(data['date'])
+            assets.append(data['total_assets'])
+            fund_balance.append(data['fund_balance'])
+            gain_loss.append(data['position_gain_loss'])
+
+        total.append(data_date)
+        total.append(assets)
+        total.append(fund_balance)
+        total.append(gain_loss)
+
+        self.assertEqual(total[0][1], 3)
+
+        """2020-02-18 多表组合查询功能"""
         # performance_obj = TradePerformance.objects.get(trade_id=1)
         #
         # stock = performance_obj.trade.name
@@ -121,11 +157,14 @@ class ModelTest(TestCase):
         #     'tradeperformance__moving_average', 'tradeperformance__performance', 'tradeperformance__trade_performance')
         #
         # self.assertEqual(stock_list[10]['account_id'], 3)
-
+        # """2020-02-19 dashboard"""
+        # data = TradeDailyReport.objects.values('total_capital').latest()
+        #
+        # self.assertEqual(data['total_capital'], 3)
         """2020-02-18 for循环的简化"""
-        new_value_set = TradeLists.objects.filter(date__year='2020').values('date', 'account_id', 'code').annotate(fee=Sum('total_fee'))
-
-        self.assertEqual(new_value_set[2]['date'], 3)
+        # new_value_set = TradeLists.objects.filter(date__year='2020').values('date', 'account_id', 'code').annotate(fee=Sum('total_fee'))
+        #
+        # self.assertEqual(new_value_set[2]['date'], 3)
 
         """2020-2-12 TradeDailyReport表单 账户结算功能"""
         # recorder_num = TradeDailyReport.objects.aggregate(

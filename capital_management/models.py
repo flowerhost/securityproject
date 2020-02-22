@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 
 
 # Create your models here.
+from django.utils import timezone
 from django.utils.html import format_html
 
 
@@ -36,7 +37,7 @@ class CapitalAccount(models.Model):
     broker = models.ForeignKey(Broker, on_delete=models.CASCADE, verbose_name='证券公司')
     initial_capital = models.FloatField(verbose_name='期初资产')
 
-    date = models.DateField(verbose_name='创建日期')
+    date = models.DateField(verbose_name='创建日期', default=timezone.now())
 
     class Meta:
         verbose_name = '证券资金账户'
@@ -57,10 +58,11 @@ class AccountSurplus(models.Model):
     fund_balance = models.FloatField(verbose_name='资金余额')
     position_gain_loss = models.FloatField(verbose_name='浮动盈亏')
     total_fee = models.FloatField(verbose_name='总费用')
+    final_cost = models.FloatField(verbose_name='总投入')
     initial_capital = models.FloatField(verbose_name='期初资产')
     update_flag = models.BooleanField(verbose_name='数据更新标识')
 
-    date = models.DateField(verbose_name='结算日期')
+    date = models.DateField(verbose_name='结算日期', default=timezone.now())
 
     class Meta:
         verbose_name = '账户盈余表'
@@ -105,7 +107,7 @@ class TradeLists(models.Model):
     # 基础数据
     price = models.FloatField(verbose_name='买卖价格')
     quantity = models.IntegerField(verbose_name='买卖数量')
-    date = models.DateField(verbose_name='交易日期')
+    date = models.DateField(verbose_name='交易日期', default=timezone.now())
     brokerage = models.FloatField(verbose_name='交易佣金')
     stamp_duty = models.FloatField(verbose_name='印花税')
     transfer_fee = models.FloatField(verbose_name='过户费')
@@ -162,7 +164,7 @@ class TradePerformance(models.Model):
     performance = models.FloatField(verbose_name='买卖评价')  # 每笔交易的评价
     trade_performance = models.FloatField(verbose_name='总体评价')  # 清仓后股票的交易总体评价
 
-    date = models.DateField(verbose_name='评价日期')
+    date = models.DateField(verbose_name='评价日期', default=timezone.now())
 
     class Meta:
         verbose_name = '交易表现评价'
@@ -182,7 +184,7 @@ class TradeDailyReport(models.Model):
     total_capital = models.FloatField(verbose_name='交易总额')
     total_fee = models.FloatField(verbose_name='手续费')
 
-    date = models.DateField(verbose_name='结算日期')
+    date = models.DateField(verbose_name='结算日期', default=timezone.now())
 
     account = models.ForeignKey(CapitalAccount, on_delete=models.CASCADE, verbose_name='证券账户')
     update_flag = models.BooleanField(verbose_name='数据更新标志')
@@ -192,6 +194,27 @@ class TradeDailyReport(models.Model):
         verbose_name_plural = '股票持仓情况'
 
         get_latest_by = 'date'  # 用于获得最早和最新的记录
+
+
+class Positions(models.Model):
+    """持仓情况表"""
+    account = models.ForeignKey(CapitalAccount, on_delete=models.CASCADE, verbose_name='资金账号')
+
+    code = models.CharField(max_length=10, verbose_name='股票代码')
+    name = models.CharField(max_length=80, verbose_name='股票名称')
+
+    cost = models.FloatField(verbose_name='每股成本')
+    amount = models.FloatField(verbose_name='股票数量')
+    fee = models.FloatField(verbose_name=' 费用')
+    gain_loss = models.FloatField(verbose_name='浮动盈亏')
+    final_cost = models.FloatField(verbose_name='总投入')
+    market_capital = models.FloatField(verbose_name='市值')
+
+    open_date = models.DateField(verbose_name=' 建仓日期')
+    date = models.DateField(verbose_name='结算日起', default=timezone.now())
+
+    class Meta:
+        get_latest_by = 'date'
 
 
 class Clearance(models.Model):
@@ -293,4 +316,4 @@ class MyStockLists(models.Model):
     RPS250 = models.FloatField(verbose_name='RPS250强度')
     reversal_month_line = models.BinaryField(verbose_name='月线反转')
 
-    trade_date = models.DateField(verbose_name='交易日期')
+    trade_date = models.DateField(verbose_name='交易日期', default=timezone.now())

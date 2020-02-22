@@ -2,6 +2,7 @@
 
 from django.shortcuts import render, redirect
 from .models import TradeLists, TradeDailyReport, CapitalAccount, AccountSurplus, Clearance, TradePerformance, Broker
+from .models import Positions
 from .form import BrokerForm, TradeListsForm, CapitalAccountForm
 
 from django.db.models import Sum
@@ -26,8 +27,50 @@ def index(request):
 
 
 def dashboard(request):
-    pass
-    return render(request, 'capital_management/dashboard.html', locals())
+    """仪表盘，主要展示监控资金账户和股票总体表现情况"""
+    data_date = ['日期']
+    assets = ['总资产']
+    fund_balance = ['资金余额']
+    gain_loss = ['浮动盈亏']
+    final_cost = ['总投入']
+    total = []
+    # 持仓情况-->Positions
+    if Positions.objects.exists():
+        pass
+    else:
+        return redirect('capital_management:balance')
+    # 账户盈余情况-->AccountSurplus
+    if not AccountSurplus.objects.exists():
+        return redirect('capital_management:balance')
+    else:
+        total_assets = AccountSurplus.objects.values('total_assets').latest()  # 最新日期的总资产
+        market_capital = AccountSurplus.objects.values('market_capital').latest()  # 最新的总市值
+        balance = AccountSurplus.objects.values('fund_balance').latest()  # 最新的资金余额
+        position_gain_loss = AccountSurplus.objects.values('position_gain_loss').latest()  # 最新的浮动盈亏
+
+        market_capital_percentage = round(market_capital['market_capital']/total_assets['total_assets'], 2)  # 仓位比例
+        gain_loss_percentage = round(position_gain_loss['position_gain_loss']/total_assets['total_assets'], 2)  # 账户总盈亏比例
+        asset_trend = AccountSurplus.objects.values('date', 'total_assets')  # 资产走势图
+        # 测试 eCharts
+        total_data = AccountSurplus.objects.filter(date__gte='2020-01-01').values(
+            'total_assets', 'final_cost', 'market_capital', 'fund_balance', 'position_gain_loss', 'date')
+        for data in total_data:
+            month_day = data['date'].strftime("%b%d")
+            data_date.append(month_day)
+            assets.append(round(data['total_assets']/10000, 0))
+            fund_balance.append(round(data['fund_balance']/10000, 0))
+            gain_loss.append(round(data['position_gain_loss']/10000, 0))
+            final_cost.append(round(data['final_cost']/(-10000), 0))
+
+        total.append(data_date)
+        total.append(assets)
+        total.append(final_cost)
+        total.append(fund_balance)
+        total.append(gain_loss)
+        start_day = total[0][1]
+
+        context = {'total': total, 'start_day': start_day}
+        return render(request, 'capital_management/dashboard.html', context)
 
 
 def broker(request):
@@ -37,7 +80,7 @@ def broker(request):
         broker_form = BrokerForm(request.POST)
         if broker_form.is_valid():
             broker_form.save()
-            return redirect('capital_management:index')
+            return redirect('capital_management:trade')
 
     context = {'broker_form': broker_form}
     return render(request, 'capital_management/broker.html', context)
@@ -122,7 +165,7 @@ def account(request):
         account_form = CapitalAccountForm(request.POST)
         if account_form.is_valid():
             account_form.save()
-            return redirect('capital_management:dashboard')
+            return redirect('capital_management:index')
     context = {'account_form': account_form}
     return render(request, 'capital_management/account.html', context)
 
@@ -138,7 +181,6 @@ def balance(request):
             :param request:
             :return:
     """
-
     """基础数据表验证"""
     # 1.判断券商信息是否存在
     if not Broker.objects.exists():
@@ -156,18 +198,20 @@ def balance(request):
     trade_daily_name = ""
     # 1.判断TradeDailyReport状态
     if TradeDailyReport.objects.exists():
-        # daily_report_date_cursor = TradeDailyReport.objects.latest().date
+        daily_report_date_cursor = TradeDailyReport.objects.latest().date
         # daily_report_end_date = TradeLists.objects.latest().date
         trade_daily_id_cursor = TradeDailyReport.objects.latest().id
     else:
-        # daily_report_date_cursor = TradeLists.objects.earliest().date
+        daily_report_date_cursor = TradeLists.objects.earliest().date
         # daily_report_end_date = TradeLists.objects.latest().date
         trade_daily_id_cursor = 0
     # 2.运算解析数据
-    new_value_set = TradeLists.objects.values('date', 'account_id', 'code').annotate(
+    new_value_set = TradeLists.objects.filter(  # TODO: 检索不够精确，需要增加是否结算过的标志控制。
+        date__gte=daily_report_date_cursor).values('date', 'account_id', 'code').annotate(
         amount_num=Sum('quantity'), capital_num=Sum('total_capital'), fee_num=Sum('total_fee'))
     for new_value in new_value_set:
         trade_daily_code = new_value['code']
+        trade_daily_id_cursor = trade_daily_id_cursor + 1
         # 获得股票名称
         for _ in range(3):
             try:
@@ -187,7 +231,7 @@ def balance(request):
 
         trade_daily_account_id = new_value['account_id']  # 资金账户_id
         trade_daily_update_flag = True  # 是否更新标志
-        trade_daily_id_cursor = trade_daily_id_cursor + 1
+
         daily_report_date_cursor = new_value['date']
 
         TradeDailyReport.objects.create(id=trade_daily_id_cursor, name=trade_daily_name, code=trade_daily_code,
@@ -202,56 +246,89 @@ def balance(request):
     else:
         account_surplus_id_cursor = 0
 
+    # 1.判断Positions状态
+    if Positions.objects.exists():
+        positions_id_cursor = Positions.objects.latest().id
+    else:
+        positions_id_cursor = 0
+
     market_capital = 0
     total_fee = 0
     total_capital = 0
     position_gain_loss = 0
+    stock_name = ""
     stock_close = 0
     account_surplus_account_id = 0
     clearance_stock_list = {}  # 清仓股票名单
     statistic_date = TradeDailyReport.objects.latest().date  # 结算日起不够准确，目前以日报表的最新日期为统计截止日
+    # 获取交易日历
+    start_date = TradeLists.objects.earliest().date
+    for _ in range(3):
 
-    account_surplus_data = TradeDailyReport.objects.values('account_id', 'code').annotate(
-        stock_amount=Sum('amount'), stock_fee=Sum('total_fee'), stock_capital=Sum('total_capital'))
+        try:
+            calendar = pro.query('trade_cal', start_date=start_date.strftime("%Y%m%d"),
+                                 end_date=statistic_date.strftime("%Y%m%d"), is_open=1, fields=['cal_date'])
+        except:
+            time.sleep(1)
 
-    for account_surplus in account_surplus_data:
-        stock_code = account_surplus['code']
-        # 记录清仓股票和账号 字典{stock_code:account_id}
-        if account_surplus['stock_amount'] == 0:  # 一个大坑！害得我抓狂！
-            clearance_stock_list[stock_code] = account_surplus['account_id']
+    for cal in calendar.values:  # 遵照交易日历来结算
+        date_cursor = datetime.datetime.strptime(cal[0], "%Y%m%d").strftime("%Y-%m-%d")
 
-        # tushare 获取股票收盘价
-        for _ in range(3):
-            try:
-                query_result = pro.query('daily', ts_code=stock_code, start_date=statistic_date.strftime(
-                    "%Y%m%d"), end_date=statistic_date.strftime("%Y%m%d"))
-            except:
-                time.sleep(1)
-            else:
-                stock_close = query_result['close'].values[0]
-        account_surplus_account_id = account_surplus['account_id']
-        # 账户总市值= 个股市值之和；close 收盘价，计算个股市值
-        market_capital = market_capital + account_surplus['stock_amount'] * stock_close
-        # 账户总费用= 每个股票费用之和
-        total_fee = total_fee + account_surplus['stock_fee']
-        # 账户总交易金额
-        total_capital = total_capital + account_surplus['stock_capital']
-        # 账户浮动盈亏
-        stock_position_gain_loss = account_surplus['stock_amount'] * stock_close - account_surplus['stock_capital']
-        position_gain_loss = position_gain_loss + stock_position_gain_loss * -1
+        account_surplus_data = TradeDailyReport.objects.filter(date__gte=date_cursor).values('account_id', 'code').annotate(
+            stock_amount=Sum('amount'), stock_fee=Sum('total_fee'), stock_capital=Sum('total_capital'))
 
-    # 期初资产
-    initial_capital = CapitalAccount.objects.get(id=account_surplus_account_id).initial_capital
-    fund_balance = initial_capital + total_capital  # 资金余额
-    # 总资产
-    total_assets = round(fund_balance + market_capital, 2)
-    update_flag = True
-    account_surplus_id_cursor = account_surplus_id_cursor + 1  # 该表单 id自动加1
+        for account_surplus in account_surplus_data:
+            stock_code = account_surplus['code']
+            # 记录清仓股票和账号 字典{stock_code:account_id}
+            if account_surplus['stock_amount'] == 0:  # 一个大坑！害得我抓狂！
+                clearance_stock_list[stock_code] = account_surplus['account_id']
 
-    AccountSurplus.objects.create(id=account_surplus_id_cursor, total_assets=total_assets, total_fee=total_fee,
-                                  account_id=account_surplus_account_id, market_capital=market_capital,
-                                  fund_balance=fund_balance, position_gain_loss=position_gain_loss,
-                                  initial_capital=initial_capital, date=statistic_date, update_flag=update_flag)
+            # tushare 获取股票收盘价
+            for _ in range(3):
+                try:
+                    query_result = pro.query('daily', ts_code=stock_code, start_date=statistic_date.strftime(
+                        "%Y%m%d"), end_date=statistic_date.strftime("%Y%m%d"))
+                except:
+                    time.sleep(1)
+                else:
+                    stock_close = query_result['close'].values[0]
+            account_surplus_account_id = account_surplus['account_id']
+            # 账户总市值= 个股市值之和；close 收盘价，计算个股市值
+            stock_amount = account_surplus['stock_amount']
+            stock_market_capital = round(stock_amount*stock_close, 2)
+            market_capital = round(market_capital + stock_market_capital, 2)
+            # 账户总费用= 每个股票费用之和
+            stock_fee = account_surplus['stock_fee']
+            total_fee = total_fee + stock_fee
+            # 账户总交易金额
+            stock_capital = account_surplus['stock_capital']  # 个股投入资金成本
+            stock_cost = round(stock_capital/stock_amount, 2)
+            total_capital = round((total_capital + account_surplus['stock_capital']), 2)
+            # 账户浮动盈亏
+            stock_position_gain_loss = stock_amount * stock_close - stock_capital
+            position_gain_loss = round((position_gain_loss + stock_position_gain_loss * -1), 2)
+
+            positions_id_cursor = positions_id_cursor + 1
+            stock_open_date = TradeDailyReport.objects.filter(code=stock_code).earliest().date
+
+            # 股票持仓情况更新
+            Positions.objects.create(id=positions_id_cursor, account_id=account_surplus_account_id, code=stock_code,
+                                     name=stock_name, cost=stock_cost, amount=stock_amount, fee=stock_fee,
+                                     gain_loss=stock_position_gain_loss, market_capital=stock_market_capital,
+                                     open_date=stock_open_date, final_cost=stock_capital, date=date_cursor)
+        # 期初资产
+        initial_capital = CapitalAccount.objects.get(id=account_surplus_account_id).initial_capital
+        fund_balance = round((initial_capital + total_capital), 2)  # 资金余额
+        # 总资产
+        total_assets = round(fund_balance + market_capital, 2)
+        update_flag = True
+        account_surplus_id_cursor = account_surplus_id_cursor + 1  # 该表单 id自动加1
+
+        AccountSurplus.objects.create(id=account_surplus_id_cursor, total_assets=total_assets, total_fee=total_fee,
+                                      account_id=account_surplus_account_id, market_capital=market_capital,
+                                      fund_balance=fund_balance, position_gain_loss=position_gain_loss,
+                                      final_cost=total_capital, initial_capital=initial_capital, date=date_cursor,
+                                      update_flag=update_flag)
 
     """清仓股票结算"""
     clearance_id_cursor = 1
@@ -309,6 +386,8 @@ def balance(request):
                                          clear_date=clear_date, invest_capital=invest_capital, fee=total_fee,
                                          profit=profit,
                                          account_id=account_id)
+
+    """Positions持仓股票结算"""
 
     """Performance交易表现评价"""
     close = 0
