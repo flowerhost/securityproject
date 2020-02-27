@@ -1,0 +1,303 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}仪表盘{% endblock %}
+{% block css %}{% endblock %}
+
+{% block breadcrumb %}
+    <!-- Content Header (Page header) -->
+    <section class="content-header" xmlns="http://www.w3.org/1999/html">
+      <h1>
+        <small>均线分析</small>
+      </h1>
+      <ol class="breadcrumb">
+        <li><a href="#"><i class="fa fa-dashboard"></i> 主页</a></li>
+        <li class="active">个股分析</li>
+      </ol>
+    </section>
+{% endblock %}
+
+{% block content %}
+   <div class="col-md-12">
+
+    <!-- BAR CHART -->
+      <div class="box box-success">
+        <div class="box-header with-border">
+          <h3 class="box-title">
+               <form action="{% url 'capital_management:line' %}" method="post">
+            {% csrf_token %}
+            {{ form.errors }}
+            <input type="text" name="stock_code">
+            <input type="submit" value="查询">
+            <p style="color: red">{{ error_msg }}</p>
+      </form>
+          </h3>
+
+          <div class="box-tools pull-right">
+            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i>
+            </button>
+            <button type="button" class="btn btn-box-tool" data-widget="remove"><i class="fa fa-times"></i></button>
+          </div>
+        </div>
+        <div class="box-body">
+            <div id="line" style="width:1200px;height:600px;"></div>
+        </div>
+        <!-- /.box-body -->
+      </div>
+   </div>
+{% endblock %}
+
+{% block script %}
+<script type="text/javascript" src="{% static 'AdminLTE-2.4.10/bower_components/echarts/dist/echarts.min.js' %}"></script>
+
+<script type="text/javascript">
+<!--demo -->
+$(function () {
+var dom = document.getElementById("line");
+var myChart = echarts.init(dom);
+var app = {};
+option = null;
+var upColor = '#ec0000';
+var upBorderColor = '#8A0000';
+var downColor = '#00da3c';
+var downBorderColor = '#008F28';
+
+
+// 数据意义：开盘(open)，收盘(close)，最低(lowest)，最高(highest)
+var data0 = splitData({{ line_data|safe }});
+
+
+function splitData(rawData) {
+    var categoryData = [];
+    var values = []
+    for (var i = 0; i < rawData.length; i++) {
+        categoryData.push(rawData[i].splice(0, 1)[0]);
+        values.push(rawData[i])
+    }
+    return {
+        categoryData: categoryData,
+        values: values
+    };
+}
+
+function calculateMA(dayCount) {
+    var result = [];
+    for (var i = 0, len = data0.values.length; i < len; i++) {
+        if (i < dayCount) {
+            result.push('-');
+            continue;
+        }
+        var sum = 0;
+        for (var j = 0; j < dayCount; j++) {
+            sum += data0.values[i - j][1];
+        }
+        dataMA = sum/ dayCount;
+        result.push(dataMA.toFixed(2));
+    }
+    return result;
+}
+function calculateStopLoss(dayCount) {
+    var result = [];
+    var stop_loss = 0;
+    for (var i = 0, len = data0.values.length; i < len; i++) {
+        if (i < dayCount) {
+            result.push('-');
+            continue;
+        }
+        stop_loss = data0.values[i-1][2]
+        var sum = 0;
+        var count_number = 0;
+        for (var j = 0; j < dayCount; j++) {
+            latest_low = data0.values[i-j][2]
+            for(var k=1; k < 2; k++) {
+                early_low = data0.values[i-j-k][2]
+                if (early_low > latest_low) {
+                    count_number ++
+                    sum += early_low-latest_low;
+                }
+            }
+
+        }
+        stop_loss = stop_loss - 3*sum/count_number;
+        result.push(stop_loss.toFixed(2));
+    }
+    return result;
+}
+
+
+
+option = {
+    title: {
+        text:'{{ stock_name|safe }}',
+        left: 0
+    },
+    tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+            type: 'cross'
+        }
+    },
+    legend: {
+        data: ['日K', '止损点', 'MA10', 'MA20']
+    },
+    grid: {
+        left: '10%',
+        right: '10%',
+        bottom: '15%'
+    },
+    xAxis: {
+        type: 'category',
+        data: data0.categoryData,
+        scale: true,
+        boundaryGap: false,
+        axisLine: {onZero: false},
+        splitLine: {show: false},
+        splitNumber: 50,
+        min: 'dataMin',
+        max: 'dataMax'
+    },
+    yAxis: {
+        scale: true,
+        splitArea: {
+            show: true
+        }
+    },
+    dataZoom: [
+        {
+            type: 'inside',
+            start: 50,
+            end: 100
+        },
+        {
+            show: true,
+            type: 'slider',
+            top: '90%',
+            start: 50,
+            end: 100
+        }
+    ],
+    series: [
+        {
+            name: '日K',
+            type: 'candlestick',
+            data: data0.values,
+            itemStyle: {
+                color: upColor,
+                color0: downColor,
+                borderColor: upBorderColor,
+                borderColor0: downBorderColor
+            },
+            markPoint: {
+                label: {
+                    normal: {
+                        formatter: function (param) {
+                            return param != null ? Math.round(param.value) : '';
+                        }
+                    }
+                },
+                data: [
+                    {
+                        name: 'XX标点',
+                        coord: ['2013/5/31', 2300],
+                        value: 2300,
+                        itemStyle: {
+                            color: 'rgb(41,60,85)'
+                        }
+                    },
+                    {
+                        name: 'highest value',
+                        type: 'max',
+                        valueDim: 'highest'
+                    },
+                    {
+                        name: 'lowest value',
+                        type: 'min',
+                        valueDim: 'lowest'
+                    },
+                    {
+                        name: 'average value on close',
+                        type: 'average',
+                        valueDim: 'close'
+                    }
+                ],
+                tooltip: {
+                    formatter: function (param) {
+                        return param.name + '<br>' + (param.data.coord || '');
+                    }
+                }
+            },
+            markLine: {
+                symbol: ['none', 'none'],
+                data: [
+                    [
+                        {
+                            name: 'from lowest to highest',
+                            type: 'min',
+                            valueDim: 'lowest',
+                            symbol: 'circle',
+                            symbolSize: 10,
+                            label: {
+                                show: false
+                            },
+                            emphasis: {
+                                label: {
+                                    show: false
+                                }
+                            }
+                        },
+                        {
+                            type: 'max',
+                            valueDim: 'highest',
+                            symbol: 'circle',
+                            symbolSize: 10,
+                            label: {
+                                show: false
+                            },
+                            emphasis: {
+                                label: {
+                                    show: false
+                                }
+                            }
+                        }
+                    ],
+                    {
+                        name: 'min line on close',
+                        type: 'min',
+                        valueDim: 'close'
+                    },
+                    {
+                        name: 'max line on close',
+                        type: 'max',
+                        valueDim: 'close'
+                    }
+                ]
+            }
+        },
+        {
+            name: '止损点',
+            type: 'line',
+            data: calculateStopLoss(10),
+            smooth: true,
+            lineStyle: {
+                opacity: 0.5
+            }
+        },
+        {
+            name: 'MA10',
+            type: 'line',
+            data: calculateMA(10),
+            smooth: true,
+            lineStyle: {
+                opacity: 0.5
+            }
+        },
+    ]
+};
+
+;
+if (option && typeof option === "object") {
+    myChart.setOption(option, true);
+}
+});
+</script>
+
+{% endblock %}

@@ -31,3 +31,6 @@ class TradeDailyReportForm(ModelForm):
         model = TradeDailyReport
 
         fields = ['name', 'code', 'cost', 'amount', 'account']
+
+class ChartForm(ModelForm):
+    """个股走势图分析"""

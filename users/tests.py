@@ -17,11 +17,17 @@ import datetime
 
 from itertools import chain
 
-ts.set_token('033ad3c72aef8ce38d29d34482058b87265b32d788fb6f24d2e0e8d6')
-pro = ts.pro_api()
+# ts.set_token('033ad3c72aef8ce38d29d34482058b87265b32d788fb6f24d2e0e8d6')
+# pro = ts.pro_api()
+#
+#
+# calendar = pro.query('trade_cal', start_date='20200214', end_date='20200221', is_open=1, fields=['cal_date'])
+# for data in calendar.values:
+#     date_cal = data[0]
+#     print(date_cal)
 
+df = ts.pro_bar('000001.SZ', start_date='20191201', end_date='20200223', )
+df1 = df.sort_values(by= ['trade_date'], ascending=[True])
+data = df1[['trade_date', 'open', 'close', 'high', 'low']].values.tolist()
 
-calendar = pro.query('trade_cal', start_date='20200214', end_date='20200221', is_open=1, fields=['cal_date'])
-for data in calendar.values:
-    date_cal = data[0]
-    print(date_cal)
+print(data)

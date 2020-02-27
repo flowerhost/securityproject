@@ -21,4 +21,6 @@ urlpatterns = [
     path('account/', views.account, name='account'),
     #  系统结算功能
     path('balance/', views.balance, name='balance'),
+    # 个股均线功能
+    path('line/', views.line, name='line'),
 ]

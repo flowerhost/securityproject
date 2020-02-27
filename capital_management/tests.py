@@ -97,7 +97,7 @@ class ModelTest(TestCase):
 
         TradeDailyReport.objects.create(id=1, name='伯特利', code='603596.SH', date='2017-1-1', cost='100', amount='200',
                                         account_id=1, total_capital=10, total_fee=10,  update_flag=True)
-        TradeDailyReport.objects.create(id=2, name='0', code='000005.SZ', date='2017-01-03', cost='0', amount='0',
+        TradeDailyReport.objects.create(id=2, name='广兰生物', code='000005.SZ', date='2017-1-1', cost='0', amount='0',
                                         account_id=1, total_capital=10, total_fee=1002, update_flag=False)
         TradeDailyReport.objects.create(id=3, name='0', code='000005.SZ', date='2020-02-01', cost='0', amount='0',
                                         account_id=1, total_capital=101, total_fee=10, update_flag=False)
@@ -125,28 +125,48 @@ class ModelTest(TestCase):
                                       final_cost=103, date='2020-01-15', account_id=1)
 
     def test_event_models(self, columns=None):
+        """2020-02-23eCharts日线图"""
+        df = ts.pro_bar('000001.SZ', start_date='20191201', end_date='20200221',
+                        )
+        self.assertEqual(df[['trade_date', 'open', 'close', 'high', 'close']], 3)
+
         """2020-02-20 echarts 表数据结构"""
-        # 筛选一个月的数据
-        data_date = ['product']
-        assets = ['总资产']
-        fund_balance = ['余额']
-        gain_loss = ['浮盈亏']
-        total = []
-        total_data = AccountSurplus.objects.filter(date__gte='2020-01-01').values(
-            'total_assets', 'market_capital', 'fund_balance', 'position_gain_loss', 'date')
-        for data in total_data:
-            new_date = data['date']
-            data_date.append(data['date'])
-            assets.append(data['total_assets'])
-            fund_balance.append(data['fund_balance'])
-            gain_loss.append(data['position_gain_loss'])
-
-        total.append(data_date)
-        total.append(assets)
-        total.append(fund_balance)
-        total.append(gain_loss)
-
-        self.assertEqual(total[0][1], 3)
+        # # 筛选一个月的数据
+        # data_date = ['product']
+        # assets = ['总资产']
+        # fund_balance = ['余额']
+        # gain_loss = ['浮盈亏']
+        # total = []
+        # total_data = AccountSurplus.objects.filter(date__gte='2020-01-01').values(
+        #     'total_assets', 'market_capital', 'fund_balance', 'position_gain_loss', 'date')
+        # for data in total_data:
+        #     new_date = data['date']
+        #     data_date.append(data['date'])
+        #     assets.append(data['total_assets'])
+        #     fund_balance.append(data['fund_balance'])
+        #     gain_loss.append(data['position_gain_loss'])
+        #
+        # total.append(data_date)
+        # total.append(assets)
+        # total.append(fund_balance)
+        # total.append(gain_loss)
+        #
+        # self.assertEqual(total[0][1], 3)
+        """tushare 日线接口"""
+        # query_result = pro.query('daily', ts_code='002007.SZ', start_date='20200204', end_date='20200204')
+        # self.assertEqual(query_result['change'].values[0], 3)
+        # stock_lists = []
+        # stock_name = []
+        # stock_value = []
+        # nut = []
+        # positions_data = TradeDailyReport.objects.filter(date='2017-1-1').values('name', 'total_capital')
+        # for stock in positions_data:
+        #     stock_value.append(stock['total_capital'])
+        #     stock_name.append(stock['name'])
+        #     donut = {'value': stock['total_capital'], 'name': stock['name']}
+        #     nut.append(donut)
+        #
+        # self.assertEqual(nut, 3)
 
         """2020-02-18 多表组合查询功能"""
         # performance_obj = TradePerformance.objects.get(trade_id=1)
