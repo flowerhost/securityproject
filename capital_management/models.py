@@ -154,7 +154,7 @@ class TradeLists(models.Model):
 
 class TradePerformance(models.Model):
     """交易表现评价表"""
-    trade = models.ForeignKey(TradeLists, on_delete=models.CASCADE, verbose_name='股票代码')
+    trade = models.ForeignKey(TradeLists, on_delete=models.CASCADE, verbose_name='交易记录')
     close = models.FloatField(verbose_name='收盘价')
     moving_average = models.FloatField(verbose_name='十日均线')
     high_price = models.FloatField(verbose_name='最高价')
@@ -288,6 +288,26 @@ class MarketQuotation(models.Model):
     class Meta:
         verbose_name = '行情记录'
         verbose_name_plural = '行情记录'
+
+
+class CapitalManagement(models.Model):
+    """资金管理和仓位管理"""
+    # account_surplus = models.ForeignKey(AccountSurplus, on_delete=models.DO_NOTHING, verbose_name='仓位管理')
+
+    assets_6 = models.FloatField(verbose_name='总资产')
+
+    stock_name = models.CharField(max_length=80, verbose_name=' 交易标的物')
+    stop_loss = models.FloatField(verbose_name=' 止损点')
+    buy = models.FloatField(verbose_name='买入价')
+    positions = models.FloatField(verbose_name='持仓股数')
+    max_volume = models.FloatField(verbose_name='可买股数')
+
+    date = models.DateField(verbose_name='建仓日期')
+
+    class Meta:
+        verbose_name_plural = ' 仓位管理'
+        verbose_name = '仓位管理'
+        get_latest_by = 'date'
 
 
 class MyStockLists(models.Model):

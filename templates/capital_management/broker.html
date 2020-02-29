@@ -21,18 +21,20 @@
 {% endblock %}
 
 {% block content %}
+    <div class="col-md-6">
+    <!-- BAR CHART -->
+      <div class="box box-success">
 
-   <!-- Main content -->
-   <section class="content">
+        <div class="box-header with-border">
+          <h3 class="box-title">券商信息维护</h3>
 
-        <div class="col-md-6">
-          <!-- Horizontal Form -->
-          <div class="box box-info">
-            <div class="box-header with-border">
-              <h3 class="box-title">券商信息维护更新</h3>
-            </div>
-            <!-- /.box-header -->
-            <!-- form start -->
+          <div class="box-tools pull-right">
+            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i>
+            </button>
+            <button type="button" class="btn btn-box-tool" data-widget="remove"><i class="fa fa-times"></i></button>
+          </div>
+        </div>
+        <div class="box-body">
             <form action="{% url 'capital_management:broker' %}" class="form-horizontal" method="post">
               <div class="box-body">
                   <!-- input 类实现的功能
@@ -114,17 +116,11 @@
               </div>
               <!-- /.box-footer -->
             </form>
-          </div>
-          <!-- /.box -->
-          <!-- general form elements disabled -->
 
-          <!-- /.box -->
         </div>
-        <!--/.col (right) -->
-
-      <!-- /.row -->
-    </section>
-
+        <!-- /.box-body -->
+      </div>
+   </div>
 {% endblock %}
 
 {% block script %}

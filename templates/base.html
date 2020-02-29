@@ -258,13 +258,15 @@ desired effect
         <!-- Optionally, you can add icons to the links -->
 
         <li><a href="{% url 'capital_management:dashboard' %}"><i class="fa fa-dashboard"></i> <span>仪表盘</span></a></li>
-        <li><a href="{% url 'capital_management:index' %}"><i class="fa fa-table"></i> <span>股票交易记录</span></a></li>
+        <li><a href="{% url 'capital_management:capital_management' %}"><i class="fa fa-file-text"></i> <span>风险敞口</span></a></li>
+        <li><a href="{% url 'capital_management:line' %}"><i class="fa fa-file-text"></i> <span>个股分析</span></a></li>
+        <li><a href="{% url 'capital_management:index' %}"><i class="fa fa-table"></i> <span>股票交易评价</span></a></li>
+        <li class="header">交易更新</li>
+        <li><a href="{% url 'capital_management:trade' %}"><i class="fa fa-file-text"></i> <span>交易流水</span></a></li>
+        <li><a href="{% url 'capital_management:balance' %}"><i class="fa fa-file-text"></i> <span>交易结算</span></a></li>
+        <li class="header">后台维护</li>
         <li><a href="{% url 'capital_management:broker' %}"><i class="fa fa-file-text"></i> <span>券商维护</span></a></li>
         <li><a href="{% url 'capital_management:account' %}"><i class="fa fa-file-text"></i> <span>账户维护</span></a></li>
-        <li><a href="{% url 'capital_management:trade' %}"><i class="fa fa-file-text"></i> <span>交易流水</span></a></li>
-        <li><a href="{% url 'capital_management:line' %}"><i class="fa fa-file-text"></i> <span>个股分析</span></a></li>
-        <li><a href="{% url 'capital_management:balance' %}"><i class="fa fa-file-text"></i> <span>交易结算</span></a></li>
-
 
       </ul>
       <!-- /.sidebar-menu -->

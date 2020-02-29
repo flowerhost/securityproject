@@ -125,10 +125,12 @@ class ModelTest(TestCase):
                                       final_cost=103, date='2020-01-15', account_id=1)
 
     def test_event_models(self, columns=None):
-        """2020-02-23eCharts日线图"""
-        df = ts.pro_bar('000001.SZ', start_date='20191201', end_date='20200221',
-                        )
-        self.assertEqual(df[['trade_date', 'open', 'close', 'high', 'close']], 3)
+        # """2020-02-23eCharts日线图"""
+        # df = ts.pro_bar('000001.SZ', start_date='20191201', end_date='20200221',
+        #                 )
+        # self.assertEqual(df[['trade_date', 'open', 'close', 'high', 'close']], 3)
+        #
+        """"计算"""
 
         """2020-02-20 echarts 表数据结构"""
         # # 筛选一个月的数据
@@ -159,14 +161,14 @@ class ModelTest(TestCase):
         # stock_name = []
         # stock_value = []
         # nut = []
-        # positions_data = TradeDailyReport.objects.filter(date='2017-1-1').values('name', 'total_capital')
+        positions_data = TradeDailyReport.objects.filter(date='2017-1-1').values('name', 'total_capital')
         # for stock in positions_data:
         #     stock_value.append(stock['total_capital'])
         #     stock_name.append(stock['name'])
         #     donut = {'value': stock['total_capital'], 'name': stock['name']}
         #     nut.append(donut)
         #
-        # self.assertEqual(nut, 3)
+        self.assertEqual(positions_data, 3)
 
         """2020-02-18 多表组合查询功能"""
         # performance_obj = TradePerformance.objects.get(trade_id=1)
@@ -196,10 +198,9 @@ class ModelTest(TestCase):
         # end_date = datetime.datetime.today().strftime("%Y-%m-%d")  # django的语句比较简洁
         # start_date = TradeDailyReport.objects.get(id=position_id).date
         # date_delta = 50
-        # # tushare接口获取交易日历
-        # # calendar = pro.query('trade_cal', start_date=start_date, end_date=end_date, is_open=1, fields=['cal_date'])
-        # # 获得上一交易日的持仓情况
-        #
+        # tushare接口获取交易日历
+        c
+
         # # 当前结算日的股票交易汇总数据
         #
         # # 两者之和生成新的结算数据

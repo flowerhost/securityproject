@@ -23,4 +23,5 @@ urlpatterns = [
     path('balance/', views.balance, name='balance'),
     # 个股均线功能
     path('line/', views.line, name='line'),
+    path('capital_management/', views.capital_manage, name='capital_management'),
 ]

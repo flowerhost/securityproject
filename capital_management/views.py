@@ -2,13 +2,14 @@
 
 from django.shortcuts import render, redirect
 from .models import TradeLists, TradeDailyReport, CapitalAccount, AccountSurplus, Clearance, TradePerformance, Broker
-from .models import Positions
+from .models import Positions, CapitalManagement
 from .form import BrokerForm, TradeListsForm, CapitalAccountForm
 
 from django.db.models import Sum
 
 import time
 import datetime
+
 
 """tushare类数据接口"""
 import tushare as ts
@@ -414,10 +415,13 @@ def balance(request):
                 stock_open_date = TradeDailyReport.objects.filter(code=stock_code).earliest().date
 
                 # 股票持仓情况更新
-                Positions.objects.create(id=positions_id_cursor, account_id=account_surplus_account_id, code=stock_code,
-                                         name=stock_name, cost=stock_cost, amount=stock_amount, fee=stock_fee,
-                                         gain_loss=stock_position_gain_loss, market_capital=stock_market_capital,
-                                         open_date=stock_open_date, final_cost=stock_capital, date=date_cursor)
+                if stock_amount == 0:#  TODO: 今天修改。
+                    pass
+                else:
+                    Positions.objects.create(id=positions_id_cursor, account_id=account_surplus_account_id, code=stock_code,
+                                             name=stock_name, cost=stock_cost, amount=stock_amount, fee=stock_fee,
+                                             gain_loss=stock_position_gain_loss, market_capital=stock_market_capital,
+                                             open_date=stock_open_date, final_cost=stock_capital, date=date_cursor)
             # 期初资产
             initial_capital = CapitalAccount.objects.get(id=account_surplus_account_id).initial_capital
             fund_balance = round((initial_capital + total_capital), 2)  # 资金余额
@@ -573,3 +577,118 @@ def balance(request):
         performance_score_date = performance_score_date + datetime.timedelta(days=1)
 
     return redirect('capital_management:index')
+
+
+def capital_manage(request):
+    """资金和仓位管理 以月为计算周期
+        监控和约束仓位功能
+        1、计算月初资金总额 AccountSurplus的总资产
+        2、6%为账户承受的最大损失；2%为每笔交易承受的最大损失
+        3、计算交易标的物的止损价 30天周期，安全区域止损法则--《走进我的交易室》
+        4、计算最大购买数：2%总资产/（买入价-止损价）
+        5、每天计算自动计算一次，公布敞口至月末。
+    """
+    if CapitalManagement.objects.exists():
+        caculate_date_cursor = CapitalManagement.objects.latest().date
+        management_id_cursor = CapitalManagement.objects.last().id
+    else:
+        caculate_date_cursor = Positions.objects.latest().date
+        management_id_cursor = 0
+
+    start_date = caculate_date_cursor - datetime.timedelta(days=30)
+    # 局部变量
+    calendar = []
+    day_count = 11
+    sum_values = 0
+    count_number = 0
+    for _ in range(3):
+
+        try:
+            calendar = pro.query('trade_cal', start_date=start_date.strftime("%Y%m%d"),
+                                 end_date=caculate_date_cursor.strftime("%Y%m%d"), is_open=1, fields=['cal_date'])
+        except:
+            time.sleep(1)
+
+    positions_data = Positions.objects.filter(
+        date=caculate_date_cursor).values('code', 'name').annotate(final_cost=Sum('final_cost'), amount=Sum('amount'))
+
+    for position in positions_data:
+        stock_name = position['name']
+        stock_code = position['code']
+        stock_amount = position['amount']
+        buy = round(position['final_cost']/position['amount']*-1, 2)
+
+        # 计算止损点
+        stop_loss_data = ts.pro_bar(ts_code=stock_code, adj='qfq',start_date=calendar['cal_date'].values[-11],
+                                    end_date=calendar['cal_date'].values[-1])
+        stop_loss_data = stop_loss_data.sort_values(by=['trade_date'], ascending=[True])
+        stop_loss_data = stop_loss_data[['trade_date', 'low']].values.tolist()
+        # 比较前一交易日的最低价
+        for i in range(day_count):
+            if i == 0:
+                pass
+            else:
+                latest_low = stop_loss_data[i][1]
+                for j in range(2):
+                    early_low = stop_loss_data[i - j][1]
+                    if early_low > latest_low:
+                        count_number = count_number + 1
+                        sum_values = sum_values + early_low - latest_low
+
+        result = round((stop_loss_data[-2][1] - 3 * sum_values / count_number), 2)
+        if CapitalManagement.objects.exists():
+            last_stop_loss = CapitalManagement.objects.filter(
+                date=caculate_date_cursor, stock_name=stock_name).values('stop_loss')
+            if last_stop_loss.exists():
+                last_loss = last_stop_loss[0]['stop_loss']
+            else:
+                last_loss = 0
+        else:
+            last_loss = 0
+        # 比较前一交易日的止损点，取大值，避免止损点下滑
+        stop_loss = max(result, last_loss)
+
+        assets = AccountSurplus.objects.last().total_assets
+        # 判断资金的风险敞口
+        capital_2 = round(assets * 0.02, -2)
+        capital_6 = round(assets * 0.06, -2)
+        # 最多3个交易标的。每个交易标的不得超过capital_2，总风险敞口不超过capital_6
+        # while capital_6:
+        #     object_number = CapitalManagement.objects.filter(date=caculate_date_cursor).Count()
+        #     if object_number < 3:
+        #
+        if buy > stop_loss:
+            max_volume = round(capital_2/(buy-stop_loss) - stock_amount, -2)
+        else:
+            max_volume = stock_amount
+        management_id_cursor = management_id_cursor + 1
+        # TODO：剩余敞口资金数
+
+        if CapitalManagement.objects.exists():
+            flag = CapitalManagement.objects.filter(date=caculate_date_cursor, stock_name=stock_name)
+            if flag:
+                pass
+            else:
+                CapitalManagement.objects.create(id=management_id_cursor, assets_6=capital_6, stock_name=stock_name,
+                                                 stop_loss=stop_loss, buy=buy, positions=stock_amount,
+                                                 max_volume=max_volume, date=caculate_date_cursor)
+        else:
+            CapitalManagement.objects.create(id=management_id_cursor, assets_6=capital_6, stock_name=stock_name,
+                                             stop_loss=stop_loss, buy=buy, positions=stock_amount,
+                                             max_volume=max_volume, date=caculate_date_cursor)
+
+        query_date = CapitalManagement.objects.latest().date
+        capital_management = CapitalManagement.objects.filter(date=query_date).values(
+            'assets_6', 'stock_name', 'stop_loss', 'buy', 'positions', 'max_volume', 'date')
+
+    return render(request, 'capital_management/management.html', locals())
+
+
+
+
+
+
+
+
+
+
