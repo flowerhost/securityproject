@@ -97,9 +97,11 @@ class ModelTest(TestCase):
 
         TradeDailyReport.objects.create(id=1, name='伯特利', code='603596.SH', date='2017-1-1', cost='100', amount='200',
                                         account_id=1, total_capital=10, total_fee=10,  update_flag=True)
+        TradeDailyReport.objects.create(id=1, name='伯特利', code='603596.SH', date='2017-1-1', cost='10001', amount='200',
+                                        account_id=1, total_capital=10, total_fee=10, update_flag=True)
         TradeDailyReport.objects.create(id=2, name='广兰生物', code='000005.SZ', date='2017-1-1', cost='0', amount='0',
                                         account_id=1, total_capital=10, total_fee=1002, update_flag=False)
-        TradeDailyReport.objects.create(id=3, name='0', code='000005.SZ', date='2020-02-01', cost='0', amount='0',
+        TradeDailyReport.objects.create(id=3, name='广兰生物', code='000005.SZ', date='2017-1-1', cost='0', amount='0',
                                         account_id=1, total_capital=101, total_fee=10, update_flag=False)
 
         TradePerformance.objects.create(id=1, close=60, moving_average=60, high_price=70, low_price=50, boll_up=66,
@@ -116,13 +118,13 @@ class ModelTest(TestCase):
                                       final_cost=100, date='2020-01-01', account_id=1)
         AccountSurplus.objects.create(id=2, total_assets=203000, market_capital=300100, fund_balance=1234,
                                       position_gain_loss=5632, total_fee=12345, initial_capital=1, update_flag=True,
-                                      final_cost=100, date='2020-01-11', account_id=1)
+                                      final_cost=100, date='2020-01-01', account_id=2)
         AccountSurplus.objects.create(id=3, total_assets=204000, market_capital=300100, fund_balance=1433,
                                       position_gain_loss=542, total_fee=12345, initial_capital=1, update_flag=True,
-                                      final_cost=1002, date='2020-01-21', account_id=1)
+                                      final_cost=1002, date='2020-01-01', account_id=2)
         AccountSurplus.objects.create(id=4, total_assets=200500, market_capital=310000, fund_balance=1833,
                                       position_gain_loss=546, total_fee=12345, initial_capital=1, update_flag=True,
-                                      final_cost=103, date='2020-01-15', account_id=1)
+                                      final_cost=103, date='2020-01-01', account_id=1)
 
     def test_event_models(self, columns=None):
         # """2020-02-23eCharts日线图"""
@@ -131,6 +133,16 @@ class ModelTest(TestCase):
         # self.assertEqual(df[['trade_date', 'open', 'close', 'high', 'close']], 3)
         #
         """"计算"""
+        positions_data = TradeDailyReport.objects.filter(
+            date='2017-1-1').values('code', 'name').annotate(final_cost=Sum('final_cost'),
+                                                                       amount=Sum('amount'))
+
+        for position in positions_data:
+            stock_name = position['name']
+            stock_code = position['code']
+            stock_amount = position['amount']
+
+            self.assertEqual(stock_amount, 3)
 
         """2020-02-20 echarts 表数据结构"""
         # # 筛选一个月的数据
@@ -161,14 +173,14 @@ class ModelTest(TestCase):
         # stock_name = []
         # stock_value = []
         # nut = []
-        positions_data = TradeDailyReport.objects.filter(date='2017-1-1').values('name', 'total_capital')
+        # positions_data = TradeDailyReport.objects.filter(date='2017-1-1').values('name', 'total_capital')
         # for stock in positions_data:
         #     stock_value.append(stock['total_capital'])
         #     stock_name.append(stock['name'])
         #     donut = {'value': stock['total_capital'], 'name': stock['name']}
         #     nut.append(donut)
         #
-        self.assertEqual(positions_data, 3)
+        # self.assertEqual(positions_data, 3)
 
         """2020-02-18 多表组合查询功能"""
         # performance_obj = TradePerformance.objects.get(trade_id=1)

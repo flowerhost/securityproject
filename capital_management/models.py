@@ -1,7 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
 
-
 # Create your models here.
 from django.utils import timezone
 from django.utils.html import format_html
@@ -292,13 +291,14 @@ class MarketQuotation(models.Model):
 
 class CapitalManagement(models.Model):
     """资金管理和仓位管理"""
-    # account_surplus = models.ForeignKey(AccountSurplus, on_delete=models.DO_NOTHING, verbose_name='仓位管理')
 
     assets_6 = models.FloatField(verbose_name='总资产')
 
     stock_name = models.CharField(max_length=80, verbose_name=' 交易标的物')
+    stock_close = models.FloatField(verbose_name='收盘价')
     stop_loss = models.FloatField(verbose_name=' 止损点')
     buy = models.FloatField(verbose_name='买入价')
+    gain_loss = models.FloatField(verbose_name='盈亏比')
     positions = models.FloatField(verbose_name='持仓股数')
     max_volume = models.FloatField(verbose_name='可买股数')
 
@@ -337,3 +337,48 @@ class MyStockLists(models.Model):
     reversal_month_line = models.BinaryField(verbose_name='月线反转')
 
     trade_date = models.DateField(verbose_name='交易日期', default=timezone.now())
+
+
+class EvaluateStocks(models.Model):
+    """股票基本面评价"""
+
+    code = models.CharField(max_length=10, verbose_name='股票代码')
+    name = models.CharField(max_length=80, verbose_name='股票名称')
+
+    eps_rate = models.FloatField(verbose_name='基本每股收益增长率')
+
+    front_q1_eps_rate = models.FloatField(verbose_name='前一单季度每股收益增长率')
+    front_q2_eps_rate = models.FloatField(verbose_name='前二季度每股收益增长率')
+    front_q3_eps_rate = models.FloatField(verbose_name='前三季度每股收益增长率')
+
+    front_y1_eps_rate = models.FloatField(verbose_name='前一年每股收益增长率')
+    front_y2_eps_rate = models.FloatField(verbose_name='前二年每股收益增长率')
+    front_y3_eps_rate = models.FloatField(verbose_name='前三年每股收益增长率')
+    forecast_eps_rate = models.FloatField(verbose_name='下年度预测每股收益增长率')
+
+    front_q1_sales_rate = models.FloatField(verbose_name='前一季度销售增长率')
+    front_q2_sales_rate = models.FloatField(verbose_name='前二季度销售增长率')
+    front_q3_sales_rate = models.FloatField(verbose_name='前三季度销售增长率')
+
+    roe = models.FloatField(verbose_name='股本回报率')
+
+    q_op_qoq = models.FloatField(verbose_name='营业利润环比增长率')
+
+    period_date = models.DateField(verbose_name='最新报告期')
+    date = models.DateField(verbose_name='更新日期')
+
+    class Meta:
+
+        get_latest_by = 'date'  # 更新日期排序
+
+
+class RelativePriceStrength(models.Model):
+    """个股相对强度"""
+    code = models.CharField(max_length=10, verbose_name='股票代码')
+
+    RPS_50 = models.FloatField(verbose_name='50日强度')
+    RPS_120 = models.FloatField(verbose_name='120日强度')
+    RPS_250 = models.FloatField(verbose_name='250日强度')
+    RPS_industry_group = models.FloatField(verbose_name='行业强度')
+
+    date = models.DateField(verbose_name='计算日期')

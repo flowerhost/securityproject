@@ -10,7 +10,6 @@ from django.db.models import Sum
 import time
 import datetime
 
-
 """tushare类数据接口"""
 import tushare as ts
 
@@ -410,14 +409,13 @@ def balance(request):
                 # 账户浮动盈亏
                 stock_position_gain_loss = round((stock_amount * stock_close + stock_capital), 2)
                 position_gain_loss = round((position_gain_loss + stock_position_gain_loss), 2)
-
-                positions_id_cursor = positions_id_cursor + 1
                 stock_open_date = TradeDailyReport.objects.filter(code=stock_code).earliest().date
 
                 # 股票持仓情况更新
-                if stock_amount == 0:#  TODO: 今天修改。
+                if stock_amount == 0:
                     pass
                 else:
+                    positions_id_cursor = positions_id_cursor + 1
                     Positions.objects.create(id=positions_id_cursor, account_id=account_surplus_account_id, code=stock_code,
                                              name=stock_name, cost=stock_cost, amount=stock_amount, fee=stock_fee,
                                              gain_loss=stock_position_gain_loss, market_capital=stock_market_capital,
@@ -601,6 +599,7 @@ def capital_manage(request):
     day_count = 11
     sum_values = 0
     count_number = 0
+    gain_loss = {}
     for _ in range(3):
 
         try:
@@ -609,20 +608,20 @@ def capital_manage(request):
         except:
             time.sleep(1)
 
-    positions_data = Positions.objects.filter(
+    positions_data = Positions.objects.filter(  # annotate 对于相同的名字的股票 叠加计算，出现错误。
         date=caculate_date_cursor).values('code', 'name').annotate(final_cost=Sum('final_cost'), amount=Sum('amount'))
 
     for position in positions_data:
         stock_name = position['name']
         stock_code = position['code']
-        stock_amount = position['amount']
+        stock_amount = position['amount']/2
         buy = round(position['final_cost']/position['amount']*-1, 2)
 
         # 计算止损点
         stop_loss_data = ts.pro_bar(ts_code=stock_code, adj='qfq',start_date=calendar['cal_date'].values[-11],
                                     end_date=calendar['cal_date'].values[-1])
         stop_loss_data = stop_loss_data.sort_values(by=['trade_date'], ascending=[True])
-        stop_loss_data = stop_loss_data[['trade_date', 'low']].values.tolist()
+        stop_loss_data = stop_loss_data[['trade_date', 'low', 'close']].values.tolist()
         # 比较前一交易日的最低价
         for i in range(day_count):
             if i == 0:
@@ -645,8 +644,11 @@ def capital_manage(request):
                 last_loss = 0
         else:
             last_loss = 0
-        # 比较前一交易日的止损点，取大值，避免止损点下滑
-        stop_loss = max(result, last_loss)
+        # 比较前一交易日的止损点，取大值，避免止损点下滑, 如果跌破买入价的8%则无条件止损，表明买点不好。
+        stop_loss = round(max(result, last_loss, buy*0.92), 2)
+
+        stock_close = stop_loss_data[-1][2]
+        gain_loss_rate = round((stock_close-buy)/buy, 2)
 
         assets = AccountSurplus.objects.last().total_assets
         # 判断资金的风险敞口
@@ -670,25 +672,38 @@ def capital_manage(request):
                 pass
             else:
                 CapitalManagement.objects.create(id=management_id_cursor, assets_6=capital_6, stock_name=stock_name,
-                                                 stop_loss=stop_loss, buy=buy, positions=stock_amount,
-                                                 max_volume=max_volume, date=caculate_date_cursor)
+                                                 stop_loss=stop_loss, positions=stock_amount, stock_close=stock_close,
+                                                 max_volume=max_volume, buy=buy, gain_loss=gain_loss_rate,
+                                                 date=caculate_date_cursor)
         else:
             CapitalManagement.objects.create(id=management_id_cursor, assets_6=capital_6, stock_name=stock_name,
-                                             stop_loss=stop_loss, buy=buy, positions=stock_amount,
-                                             max_volume=max_volume, date=caculate_date_cursor)
+                                             stop_loss=stop_loss, positions=stock_amount, stock_close=stock_close,
+                                             max_volume=max_volume, buy=buy, gain_loss=gain_loss_rate,
+                                             date=caculate_date_cursor)
 
         query_date = CapitalManagement.objects.latest().date
         capital_management = CapitalManagement.objects.filter(date=query_date).values(
-            'assets_6', 'stock_name', 'stop_loss', 'buy', 'positions', 'max_volume', 'date')
+            'assets_6', 'stock_name', 'stop_loss', 'stock_close', 'buy', 'gain_loss', 'positions', 'max_volume', 'date')
 
     return render(request, 'capital_management/management.html', locals())
 
 
-
-
-
-
-
-
-
+def evaluate(request):
+    """股票基本面评价
+        1、获取RPS：股票强度指标大于87%以上。通过通达信软件获取。
+        2、获取行业RPS：行业强度位于前6位。参考值：>= 90
+        3、通过tushare接口fina_indicator获得数据，写入EvaluateStocks表中。股票代码为通达信导入。
+        4、计算eps: 最近三个年度增长率25%以上，下一年度25%以上的预测值；最近三个季度的增长率有大幅上涨，25%-30%以上为佳。
+        5、计算sales：最近三个季度营业收入增速趋势，或者上一季度的增长率25%以上。
+        6、计算ROE：每股净资产收益率大于17%以上，一般在25%---50%之间为优秀。
+        7、计算q_op_qoq： 最近一个季度的营业利润是增长的（环比增长率为正），而且是接近此股最高点时营业利润增长率。
+        8、计算吸筹/出货：未考虑好，待进一步研究学习。
+        9、监控量比变化：当日成交量显著地放大50%以上。
+        10、计算沪深港通交易占比。tushare接口：k_hold。
+        11、计算股票综合排名。便于及时浏览关注。
+            以上指标分配不同的权重，然后进行排名。对排名靠前的股票进行四项指标独立研究：EPS、ROE、SMR和吸筹/出货，同时发现量比变化。
+        12、大盘处于上升趋势。
+    """
+    query_date = CapitalManagement.objects.last().date
+    query_data = CapitalManagement.objects.filter()
 

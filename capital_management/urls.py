@@ -23,5 +23,8 @@ urlpatterns = [
     path('balance/', views.balance, name='balance'),
     # 个股均线功能
     path('line/', views.line, name='line'),
+    # 风险敞口
     path('capital_management/', views.capital_manage, name='capital_management'),
+    # 基本面评价
+    path('evaluate/', views.evaluate, name='evaluate'),
 ]

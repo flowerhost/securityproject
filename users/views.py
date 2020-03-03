@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.contrib import auth
 from django.contrib.auth.models import User
 
@@ -16,7 +16,7 @@ def login(request):
 
             if user is not None and user.is_active:
                 auth.login(request, user)
-                return render(request, 'capital_management/index.html')
+                return redirect('capital_management:dashboard')
 
             else:
                 return render(request, 'users/login.html', {'login_form': login_form, 'message': '密码错误！请重新输入。'})

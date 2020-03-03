@@ -19,27 +19,34 @@ from itertools import chain
 
 ts.set_token('033ad3c72aef8ce38d29d34482058b87265b32d788fb6f24d2e0e8d6')
 pro = ts.pro_api()
+"""2020-02-29 计算止损点"""
+# calendar = pro.query('trade_cal', start_date='20200203', end_date='20200228', is_open=1, fields=['cal_date'])
+#
+# stop_loss_data = ts.pro_bar(ts_code='603596.SH', start_date='20200214', end_date='20200228')
+#
+# stop_loss_data = stop_loss_data.sort_values(by=['trade_date'], ascending=[True])
+# stop_loss_data = stop_loss_data[['trade_date', 'low']].values.tolist()
+# count_number = 0
+# sum_values = 0
+# for i in range(11):
+#     if i == 0:
+#         pass
+#     else:
+#         latest_low = stop_loss_data[i][1]
+#         for j in range(2):
+#             early_low = stop_loss_data[i - j][1]
+#             if early_low > latest_low:
+#                 count_number = count_number + 1
+#                 sum_values = sum_values + early_low - latest_low
+#         print(j)
+# result = stop_loss_data[-2][1] - 3 * sum_values / count_number
+#
+# print(result)
 
-calendar = pro.query('trade_cal', start_date='20200203', end_date='20200228', is_open=1, fields=['cal_date'])
+query_data = pro.query('fina_indicator', ts_code='603596.SH', start_date='20160930', end_date='20191230')
+df = query_data[['end_date', 'basic_eps_yoy', 'or_yoy', 'roe', 'q_op_qoq']]
+industry_data = pro.index_member(ts_code='603596.SH')
+roe = df['roe'][0]
 
-stop_loss_data = ts.pro_bar(ts_code='603596.SH', start_date='20200214', end_date='20200228')
 
-stop_loss_data = stop_loss_data.sort_values(by=['trade_date'], ascending=[True])
-stop_loss_data = stop_loss_data[['trade_date', 'low']].values.tolist()
-count_number = 0
-sum_values = 0
-for i in range(11):
-    if i == 0:
-        pass
-    else:
-        latest_low = stop_loss_data[i][1]
-        for j in range(2):
-            early_low = stop_loss_data[i - j][1]
-            if early_low > latest_low:
-                count_number = count_number + 1
-                sum_values = sum_values + early_low - latest_low
-        print(j)
-result = stop_loss_data[-2][1] - 3 * sum_values / count_number
-
-print(result)
-
+print(df)
