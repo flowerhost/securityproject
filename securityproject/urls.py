@@ -21,5 +21,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('users.urls', namespace='users')),
     path('index/', include('capital_management.urls', namespace='capital_management')),
-    path('captcha', include('captcha.urls')),
+    path('captcha', include('captcha.urls')),  # 登陆界面图形验证功能
+    path('select2/', include('select2.urls')),  # 下拉菜单筛选功能
 ]

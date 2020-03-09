@@ -29,7 +29,14 @@
 
         <div class="box">
         <div class="box-header">
-          <h3 class="box-title">风险敞口<small>(不含基金)</small></h3>
+            <h3 class="box-title"><small><label class="text-blue">风险敞口：</label>
+                {% if current_risk_measurement > 0 %}
+                  <label class="text-red bg-warning"> {{ message.risk_message }} {{ risk_exposure }}</label>
+                {% else %}
+                  <label class="text-yellow bg-warning"> {{ message.risk_message }} {{ risk_exposure }}</label>
+                {% endif %}
+            </small>
+            </h3>
         </div>
         <!-- /.box-header -->
         <div class="box-body">
@@ -59,9 +66,9 @@
                         <td class="text-blue bg-danger">{{ forloop.counter }}</td>
                       {% endif %}
                       {% if management.buy < management.stop_loss %}
-                        <td class="text-red bg-success">{{ management.assets_6 }}</td>
+                        <td class="text-red bg-success">{{ management.risk_6 }}</td>
                       {% else %}
-                        <td class="text-blue bg-danger">{{ management.assets_6 }}</td>
+                        <td class="text-blue bg-danger">{{ management.risk_6 }}</td>
                       {% endif %}
                       {% if management.buy < management.stop_loss %}
                         <td class="text-red bg-success">{{ management.stock_name }}</td>

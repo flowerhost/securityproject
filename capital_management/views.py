@@ -2,7 +2,7 @@
 
 from django.shortcuts import render, redirect
 from .models import TradeLists, TradeDailyReport, CapitalAccount, AccountSurplus, Clearance, TradePerformance, Broker
-from .models import Positions, CapitalManagement
+from .models import Positions, CapitalManagement, EvaluateStocks
 from .form import BrokerForm, TradeListsForm, CapitalAccountForm
 
 from django.db.models import Sum
@@ -15,6 +15,13 @@ import tushare as ts
 
 ts.set_token('033ad3c72aef8ce38d29d34482058b87265b32d788fb6f24d2e0e8d6')
 pro = ts.pro_api()
+
+
+def stock_basic(request):
+    """股票列表"""
+    query_data = pro.query('stock_basic', exchange='', list_status='L')
+    for data in query_data:
+        name = data['name'].values[0]
 
 
 def index(request):
@@ -94,10 +101,10 @@ def dashboard(request):
             'total_assets', 'final_cost', 'market_capital', 'fund_balance', 'position_gain_loss', 'date')
         for account_data in total_data:
             capital_date.append(account_data['date'].strftime("%b%d"))
-            gain_data.append(round(account_data['position_gain_loss']/10000, 2))
-            balance_data.append(round(account_data['fund_balance']/10000, 2))
-            capital_data.append(round(account_data['market_capital']/10000, 2))
-            assets_data.append(round(account_data['total_assets']/10000, 2))
+            gain_data.append(round(account_data['position_gain_loss'] / 10000, 2))
+            balance_data.append(round(account_data['fund_balance'] / 10000, 2))
+            capital_data.append(round(account_data['market_capital'] / 10000, 2))
+            assets_data.append(round(account_data['total_assets'] / 10000, 2))
         account_gain = {'name': '浮动盈亏', 'type': 'line', 'stack': '总量', 'areaStyle': {}, 'data': gain_data}
         account_balance = {'name': '资金余额', 'type': 'line', 'stack': '总量', 'areaStyle': {}, 'data': balance_data}
         capital = {'name': '总市值', 'type': 'line', 'stack': '总量', 'areaStyle': {}, 'data': capital_data}
@@ -142,8 +149,8 @@ def line(request):
         for _ in range(3):
             try:
                 query_result = pro.query('stock_basic', ts_code=stock_code, fields='name')
-                line_data = ts.pro_bar(ts_code=stock_code, start_date=start_query_date.strftime("%Y-%m-%d"),
-                                       end_date=query_date.strftime("%Y-%m-%d"))
+                line_data = ts.pro_bar(ts_code=stock_code, start_date=start_query_date.strftime("%Y%m%d"),
+                                       end_date=query_date.strftime("%Y%m%d"))
             except:
                 time.sleep(0)
             else:
@@ -265,7 +272,6 @@ def balance(request):
             :param request:
             :return:
     """
-    # TODO：判断当前时间是否收市
     """基础数据表验证"""
     # 1.判断券商信息是否存在
     if not Broker.objects.exists():
@@ -404,7 +410,7 @@ def balance(request):
                 if stock_amount == 0:
                     stock_cost = 0
                 else:
-                    stock_cost = round(stock_capital / stock_amount*-1, 2)
+                    stock_cost = round(stock_capital / stock_amount * -1, 2)
                 total_capital = round((total_capital + account_surplus['stock_capital']), 2)
                 # 账户浮动盈亏
                 stock_position_gain_loss = round((stock_amount * stock_close + stock_capital), 2)
@@ -416,7 +422,8 @@ def balance(request):
                     pass
                 else:
                     positions_id_cursor = positions_id_cursor + 1
-                    Positions.objects.create(id=positions_id_cursor, account_id=account_surplus_account_id, code=stock_code,
+                    Positions.objects.create(id=positions_id_cursor, account_id=account_surplus_account_id,
+                                             code=stock_code,
                                              name=stock_name, cost=stock_cost, amount=stock_amount, fee=stock_fee,
                                              gain_loss=stock_position_gain_loss, market_capital=stock_market_capital,
                                              open_date=stock_open_date, final_cost=stock_capital, date=date_cursor)
@@ -435,7 +442,11 @@ def balance(request):
                                           update_flag=update_flag)
 
     """清仓股票结算"""
-    clearance_id_cursor = 0
+    if Clearance.objects.exists():
+        clearance_id_cursor = Clearance.objects.last().id
+    else:
+        clearance_id_cursor = 0
+
     invest_capital_r = 0
     invest_capital_b = 0
     profit = 0
@@ -587,13 +598,16 @@ def capital_manage(request):
         5、每天计算自动计算一次，公布敞口至月末。
     """
     if CapitalManagement.objects.exists():
-        caculate_date_cursor = CapitalManagement.objects.latest().date
         management_id_cursor = CapitalManagement.objects.last().id
+        start_date = CapitalManagement.objects.last().date
     else:
-        caculate_date_cursor = Positions.objects.latest().date
         management_id_cursor = 0
+        start_date = Positions.objects.earliest().date
 
-    start_date = caculate_date_cursor - datetime.timedelta(days=30)
+    gain_loss_date = start_date - datetime.timedelta(days=30)
+    calculate_date = datetime.date.today()
+    cal = pro.query('trade_cal', start_date=gain_loss_date.strftime("%Y%m%d"),
+                    end_date=calculate_date.strftime("%Y%m%d"), is_open=1, fields=['cal_date'])
     # 局部变量
     calendar = []
     day_count = 11
@@ -604,86 +618,113 @@ def capital_manage(request):
 
         try:
             calendar = pro.query('trade_cal', start_date=start_date.strftime("%Y%m%d"),
-                                 end_date=caculate_date_cursor.strftime("%Y%m%d"), is_open=1, fields=['cal_date'])
+                                 end_date=calculate_date.strftime("%Y%m%d"), is_open=1, fields=['cal_date'])
         except:
             time.sleep(1)
+    for cal_date in calendar.values:
+        date_cursor = datetime.datetime.strptime(cal_date[0], "%Y%m%d").strftime("%Y-%m-%d")
 
-    positions_data = Positions.objects.filter(  # annotate 对于相同的名字的股票 叠加计算，出现错误。
-        date=caculate_date_cursor).values('code', 'name').annotate(final_cost=Sum('final_cost'), amount=Sum('amount'))
+        positions_data = Positions.objects.filter(  # annotate 对于相同的名字的股票 叠加计算，出现错误。
+            date=date_cursor).values('code', 'name').annotate(final_cost=Sum('final_cost'), amount=Sum('amount'))
 
-    for position in positions_data:
-        stock_name = position['name']
-        stock_code = position['code']
-        stock_amount = position['amount']/2
-        buy = round(position['final_cost']/position['amount']*-1, 2)
+        for position in positions_data:
+            stock_name = position['name']
+            stock_code = position['code']
+            stock_amount = position['amount']
+            buy = round(position['final_cost'] / position['amount'] * -1, 2)
 
-        # 计算止损点
-        stop_loss_data = ts.pro_bar(ts_code=stock_code, adj='qfq',start_date=calendar['cal_date'].values[-11],
-                                    end_date=calendar['cal_date'].values[-1])
-        stop_loss_data = stop_loss_data.sort_values(by=['trade_date'], ascending=[True])
-        stop_loss_data = stop_loss_data[['trade_date', 'low', 'close']].values.tolist()
-        # 比较前一交易日的最低价
-        for i in range(day_count):
-            if i == 0:
-                pass
-            else:
-                latest_low = stop_loss_data[i][1]
-                for j in range(2):
-                    early_low = stop_loss_data[i - j][1]
-                    if early_low > latest_low:
-                        count_number = count_number + 1
-                        sum_values = sum_values + early_low - latest_low
+            # 计算止损点
+            stop_loss_data = ts.pro_bar(ts_code=stock_code, adj='qfq', start_date=cal['cal_date'].values[-11],
+                                        end_date=cal['cal_date'].values[-1])
+            stop_loss_data = stop_loss_data.sort_values(by=['trade_date'], ascending=[True])
+            stop_loss_data = stop_loss_data[['trade_date', 'low', 'close']].values.tolist()
+            # 比较前一交易日的最低价
+            for i in range(day_count):
+                if i == 0:
+                    pass
+                else:
+                    latest_low = stop_loss_data[i][1]
+                    for j in range(2):
+                        early_low = stop_loss_data[i - j][1]
+                        if early_low > latest_low:
+                            count_number = count_number + 1
+                            sum_values = sum_values + early_low - latest_low
 
-        result = round((stop_loss_data[-2][1] - 3 * sum_values / count_number), 2)
-        if CapitalManagement.objects.exists():
-            last_stop_loss = CapitalManagement.objects.filter(
-                date=caculate_date_cursor, stock_name=stock_name).values('stop_loss')
-            if last_stop_loss.exists():
-                last_loss = last_stop_loss[0]['stop_loss']
+            result = round((stop_loss_data[-2][1] - 3 * sum_values / count_number), 2)
+            if CapitalManagement.objects.exists():
+                last_stop_loss = CapitalManagement.objects.filter(
+                    date=date_cursor, stock_name=stock_name).values('stop_loss')
+                if last_stop_loss.exists():
+                    last_loss = last_stop_loss[0]['stop_loss']
+                else:
+                    last_loss = 0
             else:
                 last_loss = 0
-        else:
-            last_loss = 0
-        # 比较前一交易日的止损点，取大值，避免止损点下滑, 如果跌破买入价的8%则无条件止损，表明买点不好。
-        stop_loss = round(max(result, last_loss, buy*0.92), 2)
+            # 比较前一交易日的止损点，取大值，避免止损点下滑, 如果跌破买入价的8%则无条件止损，表明买点不好。
+            stop_loss = round(max(result, last_loss, buy * 0.92), 2)
 
-        stock_close = stop_loss_data[-1][2]
-        gain_loss_rate = round((stock_close-buy)/buy, 2)
-
-        assets = AccountSurplus.objects.last().total_assets
-        # 判断资金的风险敞口
-        capital_2 = round(assets * 0.02, -2)
-        capital_6 = round(assets * 0.06, -2)
-        # 最多3个交易标的。每个交易标的不得超过capital_2，总风险敞口不超过capital_6
-        # while capital_6:
-        #     object_number = CapitalManagement.objects.filter(date=caculate_date_cursor).Count()
-        #     if object_number < 3:
-        #
-        if buy > stop_loss:
-            max_volume = round(capital_2/(buy-stop_loss) - stock_amount, -2)
-        else:
-            max_volume = stock_amount
-        management_id_cursor = management_id_cursor + 1
-        # TODO：剩余敞口资金数
-
-        if CapitalManagement.objects.exists():
-            flag = CapitalManagement.objects.filter(date=caculate_date_cursor, stock_name=stock_name)
-            if flag:
-                pass
+            stock_close = stop_loss_data[-1][2]
+            gain_loss_rate = round((stock_close - buy) / buy, 2)
+            # 获取月初资产*6%
+            assets = AccountSurplus.objects.get(date=date_cursor).total_assets
+            current_month = datetime.datetime.strptime(cal_date[0], "%Y%m%d").month
+            current_id = AccountSurplus.objects.get(date=date_cursor).id
+            if current_id == 1:
+                check_month = current_month
             else:
-                CapitalManagement.objects.create(id=management_id_cursor, assets_6=capital_6, stock_name=stock_name,
+                check_month = AccountSurplus.objects.get(id=current_id-1).date.month
+
+            # 判断资金的风险敞口
+            risk_2 = round(assets * 0.02, -2)
+            risk_6 = round(assets * 0.06, -2)
+            # 最多3个交易标的。每个交易标的不得超过capital_2，总风险敞口不超过capital_6
+            # while capital_6:
+            #     object_number = CapitalManagement.objects.filter(date=caculate_date_cursor).Count()
+            #     if object_number < 3:
+            #
+            if buy > stop_loss:
+                max_volume = round(risk_2 / (buy - stop_loss) - stock_amount, -2)
+            else:
+                max_volume = stock_amount
+
+            if CapitalManagement.objects.exists():
+                # 计算月初风险敞口
+                if check_month < current_month:
+                    current_month_risk = round(assets * 0.06, 2)
+                else:
+                    current_month_risk = CapitalManagement.objects.last().month_risk_6
+                flag = CapitalManagement.objects.filter(date=date_cursor, stock_name=stock_name)
+                if flag:
+                    pass
+                else:
+                    management_id_cursor = management_id_cursor + 1
+                    CapitalManagement.objects.create(id=management_id_cursor, risk_6=risk_6, stock_name=stock_name,
+                                                     stop_loss=stop_loss, positions=stock_amount, stock_close=stock_close,
+                                                     max_volume=max_volume, buy=buy, gain_loss=gain_loss_rate,
+                                                     date=date_cursor, month_risk_6=current_month_risk)
+            else:
+                management_id_cursor = management_id_cursor + 1
+                current_month_risk = risk_6
+                CapitalManagement.objects.create(id=management_id_cursor, risk_6=risk_6, stock_name=stock_name,
                                                  stop_loss=stop_loss, positions=stock_amount, stock_close=stock_close,
                                                  max_volume=max_volume, buy=buy, gain_loss=gain_loss_rate,
-                                                 date=caculate_date_cursor)
-        else:
-            CapitalManagement.objects.create(id=management_id_cursor, assets_6=capital_6, stock_name=stock_name,
-                                             stop_loss=stop_loss, positions=stock_amount, stock_close=stock_close,
-                                             max_volume=max_volume, buy=buy, gain_loss=gain_loss_rate,
-                                             date=caculate_date_cursor)
+                                                 date=date_cursor, month_risk_6=current_month_risk)
 
-        query_date = CapitalManagement.objects.latest().date
-        capital_management = CapitalManagement.objects.filter(date=query_date).values(
-            'assets_6', 'stock_name', 'stop_loss', 'stock_close', 'buy', 'gain_loss', 'positions', 'max_volume', 'date')
+            query_date = CapitalManagement.objects.latest().date
+            capital_management = CapitalManagement.objects.filter(date=query_date).values(
+                'month_risk_6', 'risk_6', 'stock_name', 'stop_loss', 'stock_close', 'buy', 'gain_loss', 'positions',
+                'max_volume', 'date')
+            # TODO：剩余敞口资金数
+            current_risk_measurement = round(risk_6 - current_month_risk, -2)
+            if current_risk_measurement > 0:
+                message = {'risk_message': "趋势向好！敞口增加"}
+                risk_exposure = current_risk_measurement
+            elif current_risk_measurement < -current_month_risk*0.06:
+                message = {'risk_message': "交易结束！本月损失"}
+                risk_exposure = round(current_risk_measurement/0.06, -2)
+            else:
+                message = {'risk_message': "趋势向坏，敞口减少"}
+                risk_exposure = round(current_risk_measurement/0.06, -2)
 
     return render(request, 'capital_management/management.html', locals())
 
@@ -694,7 +735,7 @@ def evaluate(request):
         2、获取行业RPS：行业强度位于前6位。参考值：>= 90
         3、通过tushare接口fina_indicator获得数据，写入EvaluateStocks表中。股票代码为通达信导入。
         4、计算eps: 最近三个年度增长率25%以上，下一年度25%以上的预测值；最近三个季度的增长率有大幅上涨，25%-30%以上为佳。
-        5、计算sales：最近三个季度营业收入增速趋势，或者上一季度的增长率25%以上。
+        5、计算sales：or_yoy 最近三个季度营业收入增速趋势，或者上一季度的增长率25%以上。
         6、计算ROE：每股净资产收益率大于17%以上，一般在25%---50%之间为优秀。
         7、计算q_op_qoq： 最近一个季度的营业利润是增长的（环比增长率为正），而且是接近此股最高点时营业利润增长率。
         8、计算吸筹/出货：未考虑好，待进一步研究学习。
@@ -704,6 +745,79 @@ def evaluate(request):
             以上指标分配不同的权重，然后进行排名。对排名靠前的股票进行四项指标独立研究：EPS、ROE、SMR和吸筹/出货，同时发现量比变化。
         12、大盘处于上升趋势。
     """
-    query_date = CapitalManagement.objects.last().date
-    query_data = CapitalManagement.objects.filter()
+    # query_date = CapitalManagement.objects.last().date
+    # stock_code = '000001.SZ'
+    # price_strengthh_query_data = RelativePriceStrength.objects.values(
+    #     'RPS_50', 'RPS_120', 'RPS_industry_group', 'date', 'evaluation__eps_rate', 'evaluation__front_q1_eps_rate',
+    #     'evaluation__front_y1_eps_rate', 'evaluation__front_q1_sales_rate', 'evaluation__roe', 'evaluation__q_op_qoq',
+    #     'evaluation__period_date')
+    # RelativePriceStrength.objects.create(evaluation=EvaluateStocks.objects.get(code=stock_code))  # 增加关联
+    if EvaluateStocks.objects.exists():
+        id_cursor = EvaluateStocks.objects.last().id
+    else:
+        id_cursor = 0
+    query_date = datetime.date.today()
+    start_query_date = query_date - datetime.timedelta(weeks=200)
+    if request.method == "POST":
+        stock_code = request.POST.get("stock_code")
+
+        query_result = pro.query('fina_indicator', ts_code=stock_code, strart_date=start_query_date.strftime("%Y%m%d"),
+                                 end_date=query_date.strftime("%Y%m%d"))
+        query_result = query_result[['end_date', 'basic_eps_yoy', 'or_yoy', 'roe', 'q_op_qoq']]
+
+        end_date = query_result['end_date'][0]
+        period_cursor = datetime.datetime.strptime(end_date, '%Y%m%d').date()
+
+        if period_cursor.month == 12:
+            front_y1_eps_rate = round(query_result['basic_eps_yoy'][4], 2)
+            front_y2_eps_rate = round(query_result['basic_eps_yoy'][8], 2)
+            front_y3_eps_rate = round(query_result['basic_eps_yoy'][12], 2)
+            roe = round(query_result['roe'][0])
+        elif period_cursor.month == 9:
+            front_y1_eps_rate = round(query_result['basic_eps_yoy'][7], 2)
+            front_y2_eps_rate = round(query_result['basic_eps_yoy'][11], 2)
+            front_y3_eps_rate = round(query_result['basic_eps_yoy'][15], 2)
+            roe = round(query_result['roe'][3])
+        elif period_cursor.month == 6:
+            front_y1_eps_rate = round(query_result['basic_eps_yoy'][6], 2)
+            front_y2_eps_rate = round(query_result['basic_eps_yoy'][10], 2)
+            front_y3_eps_rate = round(query_result['basic_eps_yoy'][14], 2)
+            roe = round(query_result['roe'][2])
+        else:
+            front_y1_eps_rate = round(query_result['basic_eps_yoy'][5], 2)
+            front_y2_eps_rate = round(query_result['basic_eps_yoy'][9], 2)
+            front_y3_eps_rate = round(query_result['basic_eps_yoy'][13], 2)
+            roe = round(query_result['roe'][1])
+        forecast_eps_rate = 0
+
+        eps_rate = round(query_result['basic_eps_yoy'][0], 2)
+        front_q1_eps_rate = round(query_result['basic_eps_yoy'][1], 2)
+        front_q2_eps_rate = round(query_result['basic_eps_yoy'][2], 2)
+        front_q3_eps_rate = round(query_result['basic_eps_yoy'][3], 2)
+
+        front_q1_sales_rate = round(query_result['or_yoy'][0], 2)
+        front_q2_sales_rate = round(query_result['or_yoy'][1], 2)
+        front_q3_sales_rate = round(query_result['or_yoy'][2], 2)
+
+        q_op_qoq = round(query_result['q_op_qoq'][0], 2)
+
+        period_date = period_cursor
+        date = query_date
+
+        if EvaluateStocks.objects.filter(period_date=period_date, code=stock_code):
+            pass
+        else:
+            id_cursor = id_cursor + 1
+            EvaluateStocks.objects.create(id=id_cursor, code=stock_code, front_q1_eps_rate=front_q1_eps_rate,
+                                          front_q2_eps_rate=front_q2_eps_rate, front_q3_eps_rate=front_q3_eps_rate,
+                                          front_y1_eps_rate=front_y1_eps_rate, front_y2_eps_rate=front_y2_eps_rate,
+                                          front_y3_eps_rate=front_y3_eps_rate, forecast_eps_rate=forecast_eps_rate,
+                                          front_q1_sales_rate=front_q1_sales_rate, q_op_qoq=q_op_qoq, date=query_date,
+                                          front_q2_sales_rate=front_q2_sales_rate, period_date=period_cursor,
+                                          front_q3_sales_rate=front_q3_sales_rate, eps_rate=eps_rate, roe=roe)
+
+    evaluate_query_result = EvaluateStocks.objects.all().order_by('-date')
+
+    return render(request, 'capital_management/evaluate.html', locals())
+
 

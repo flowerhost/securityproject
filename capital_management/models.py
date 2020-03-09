@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+# import select2.fields
+# import select2.models
 
 # Create your models here.
 from django.utils import timezone
@@ -77,14 +79,11 @@ class AccountSurplus(models.Model):
 class StockBasis(models.Model):
     """股票基本情况"""
     name = models.CharField(max_length=80, verbose_name='股票名称')
-    code = models.CharField(max_length=10, verbose_name='股票代码')
-
-    industry_group = models.CharField(max_length=80, verbose_name='所属行业')
-    is_HS = models.CharField(max_length=10, verbose_name='沪深通标的')
+    ts_code = models.CharField(primary_key=True, max_length=10, verbose_name='股票代码')
+    symbol = models.CharField(max_length=10, verbose_name='股票代码')
+    industry = models.CharField(max_length=80, verbose_name='所属行业')
     area = models.CharField(max_length=20, verbose_name='地区')
-
     market = models.CharField(max_length=20, verbose_name='市场类型')
-    exchange = models.CharField(max_length=20, verbose_name='交易所代码')
 
     def __str__(self):
         return self.name
@@ -292,7 +291,8 @@ class MarketQuotation(models.Model):
 class CapitalManagement(models.Model):
     """资金管理和仓位管理"""
 
-    assets_6 = models.FloatField(verbose_name='总资产')
+    risk_6 = models.FloatField(verbose_name='当日账户风险敞口')
+    month_risk_6 = models.FloatField(verbose_name='月初账户风险敞口')
 
     stock_name = models.CharField(max_length=80, verbose_name=' 交易标的物')
     stock_close = models.FloatField(verbose_name='收盘价')
@@ -343,7 +343,6 @@ class EvaluateStocks(models.Model):
     """股票基本面评价"""
 
     code = models.CharField(max_length=10, verbose_name='股票代码')
-    name = models.CharField(max_length=80, verbose_name='股票名称')
 
     eps_rate = models.FloatField(verbose_name='基本每股收益增长率')
 
@@ -375,10 +374,13 @@ class EvaluateStocks(models.Model):
 class RelativePriceStrength(models.Model):
     """个股相对强度"""
     code = models.CharField(max_length=10, verbose_name='股票代码')
+    name = models.CharField(max_length=80, verbose_name='股票名称')
 
     RPS_50 = models.FloatField(verbose_name='50日强度')
     RPS_120 = models.FloatField(verbose_name='120日强度')
     RPS_250 = models.FloatField(verbose_name='250日强度')
     RPS_industry_group = models.FloatField(verbose_name='行业强度')
+
+    evaluation = models.ForeignKey(EvaluateStocks, on_delete=models.DO_NOTHING, verbose_name='基本面评价')
 
     date = models.DateField(verbose_name='计算日期')

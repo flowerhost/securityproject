@@ -14,6 +14,7 @@ from django.test import TestCase
 import pandas as pd
 import tushare as ts
 import datetime
+import sqlite3
 
 from itertools import chain
 
@@ -42,11 +43,25 @@ pro = ts.pro_api()
 # result = stop_loss_data[-2][1] - 3 * sum_values / count_number
 #
 # print(result)
+""" 基本面"""
+# query_date = datetime.date.today()
+# start_query_date = query_date - datetime.timedelta(weeks=300)
+# query_data = pro.query('fina_indicator', ts_code='002812.SZ', start_date=start_query_date.strftime("%Y%m%d"),
+# end_date=query_date.strftime("%Y%m%d"))
+# df = query_data[['end_date', 'basic_eps_yoy', 'or_yoy', 'roe', 'q_op_qoq']]
+# industry_data = pro.index_member(ts_code='603596.SH')
+# data = df['end_date'][0]
+# query_day = datetime.datetime.strptime(data, '%Y%m%d').date()
+#
+# print(df)
 
-query_data = pro.query('fina_indicator', ts_code='603596.SH', start_date='20160930', end_date='20191230')
-df = query_data[['end_date', 'basic_eps_yoy', 'or_yoy', 'roe', 'q_op_qoq']]
-industry_data = pro.index_member(ts_code='603596.SH')
-roe = df['roe'][0]
+data = pro.query('stock_basic', exchange='', list_status='L')
+con = sqlite3.connect('/Users/flowerhost/securityproject/db.sqlite3')
+c = con.cursor()
+data = data[['name', 'ts_code', 'area', 'symbol', 'industry', 'market']]
 
+data.to_sql("capital_management_stockbasis", con, if_exists="append", index=False)
+c.execute("select * from capital_management_stockbasis")
+result = c.fetchall()
+print(result)
 
-print(df)

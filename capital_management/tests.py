@@ -132,18 +132,6 @@ class ModelTest(TestCase):
         #                 )
         # self.assertEqual(df[['trade_date', 'open', 'close', 'high', 'close']], 3)
         #
-        """"计算"""
-        positions_data = TradeDailyReport.objects.filter(
-            date='2017-1-1').values('code', 'name').annotate(final_cost=Sum('final_cost'),
-                                                                       amount=Sum('amount'))
-
-        for position in positions_data:
-            stock_name = position['name']
-            stock_code = position['code']
-            stock_amount = position['amount']
-
-            self.assertEqual(stock_amount, 3)
-
         """2020-02-20 echarts 表数据结构"""
         # # 筛选一个月的数据
         # data_date = ['product']

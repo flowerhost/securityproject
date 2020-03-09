@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     #我的应用程序
+    'select2',
     'capital_management.apps.CapitalManagementConfig',
     'users.apps.UsersConfig',
     'captcha',
