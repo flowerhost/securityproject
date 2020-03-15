@@ -47,10 +47,14 @@
                     <tr>
                         <th>序号</th>
                         <th>股票代码</th>
+                        <th>快报-股本回报率</th>
+                        <th>业绩快报报告期</th>
                         <th>最新收益增长率</th>
                         <th>前一季度收益增长率</th>
                         <th>前二季度收益增长率</th>
+                        <th>前三季度收益增长率</th>
                         <th>前一年度收益增长率</th>
+                        <th>前二年度收益增长率</th>
                         <th>前一季度销售增长率</th>
                         <th>股本回报率</th>
                         <th>营业利润环比增长率</th>
@@ -67,13 +71,21 @@
 
                         <td class="text-blue bg-danger">{{ evaluation.code }}</td>
 
+                        <td class="text-blue bg-danger">{{ evaluation.express_diluted_roe }}</td>
+
+                        <td class="text-blue bg-danger">{{ evaluation.express_date }}</td>
+
                         <td class="text-blue bg-danger">{{ evaluation.eps_rate }}</td>
 
                         <td class="text-blue bg-danger">{{ evaluation.front_q1_eps_rate }}</td>
 
                         <td class="text-blue bg-danger">{{ evaluation.front_q2_eps_rate }}</td>
 
+                        <td class="text-blue bg-danger">{{ evaluation.front_q3_eps_rate }}</td>
+
                         <td class="text-blue bg-danger">{{ evaluation.front_y1_eps_rate }}</td>
+
+                        <td class="text-blue bg-danger">{{ evaluation.front_y2_eps_rate }}</td>
 
                         <td class="text-blue bg-danger">{{ evaluation.front_q1_sales_rate }}</td>
 

@@ -344,6 +344,9 @@ class EvaluateStocks(models.Model):
 
     code = models.CharField(max_length=10, verbose_name='股票代码')
 
+    express_diluted_roe = models.FloatField(verbose_name='业绩快报---净资产收益率')
+    express_date = models.DateField(verbose_name='业绩快报日期')
+
     eps_rate = models.FloatField(verbose_name='基本每股收益增长率')
 
     front_q1_eps_rate = models.FloatField(verbose_name='前一单季度每股收益增长率')

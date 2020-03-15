@@ -142,14 +142,14 @@ def line(request):
     stock_name = ""
     data = []
     query_date = datetime.date.today()
-    start_query_date = query_date - datetime.timedelta(days=250)
+    start_query_date = query_date - datetime.timedelta(weeks=120)
 
     if request.method == "POST":
         stock_code = request.POST.get("stock_code")
         for _ in range(3):
             try:
                 query_result = pro.query('stock_basic', ts_code=stock_code, fields='name')
-                line_data = ts.pro_bar(ts_code=stock_code, start_date=start_query_date.strftime("%Y%m%d"),
+                line_data = ts.pro_bar(ts_code=stock_code, freq='W', adj='qfq', start_date=start_query_date.strftime("%Y%m%d"),
                                        end_date=query_date.strftime("%Y%m%d"))
             except:
                 time.sleep(0)
@@ -606,8 +606,7 @@ def capital_manage(request):
 
     gain_loss_date = start_date - datetime.timedelta(days=30)
     calculate_date = datetime.date.today()
-    cal = pro.query('trade_cal', start_date=gain_loss_date.strftime("%Y%m%d"),
-                    end_date=calculate_date.strftime("%Y%m%d"), is_open=1, fields=['cal_date'])
+
     # 局部变量
     calendar = []
     day_count = 11
@@ -622,7 +621,7 @@ def capital_manage(request):
         except:
             time.sleep(1)
     for cal_date in calendar.values:
-        date_cursor = datetime.datetime.strptime(cal_date[0], "%Y%m%d").strftime("%Y-%m-%d")
+        date_cursor = datetime.datetime.strptime(cal_date[0], "%Y%m%d")
 
         positions_data = Positions.objects.filter(  # annotate 对于相同的名字的股票 叠加计算，出现错误。
             date=date_cursor).values('code', 'name').annotate(final_cost=Sum('final_cost'), amount=Sum('amount'))
@@ -632,8 +631,10 @@ def capital_manage(request):
             stock_code = position['code']
             stock_amount = position['amount']
             buy = round(position['final_cost'] / position['amount'] * -1, 2)
-
-            # 计算止损点
+            # 计算止损点, 先拿到计算日前30天的交易日历，便于计算前10日最低价。
+            gain_loss_date = date_cursor - datetime.timedelta(days=30)
+            cal = pro.query('trade_cal', start_date=gain_loss_date.strftime("%Y%m%d"),
+                            end_date=cal_date[0], is_open=1, fields=['cal_date'])
             stop_loss_data = ts.pro_bar(ts_code=stock_code, adj='qfq', start_date=cal['cal_date'].values[-11],
                                         end_date=cal['cal_date'].values[-1])
             stop_loss_data = stop_loss_data.sort_values(by=['trade_date'], ascending=[True])
@@ -652,8 +653,10 @@ def capital_manage(request):
 
             result = round((stop_loss_data[-2][1] - 3 * sum_values / count_number), 2)
             if CapitalManagement.objects.exists():
+                last_loss_date = cal['cal_date'].values[-2]
+                last_loss_date = datetime.datetime.strptime(last_loss_date, "%Y%m%d")
                 last_stop_loss = CapitalManagement.objects.filter(
-                    date=date_cursor, stock_name=stock_name).values('stop_loss')
+                    date=last_loss_date, stock_name=stock_name).values('stop_loss')
                 if last_stop_loss.exists():
                     last_loss = last_stop_loss[0]['stop_loss']
                 else:
@@ -690,7 +693,7 @@ def capital_manage(request):
             if CapitalManagement.objects.exists():
                 # 计算月初风险敞口
                 if check_month < current_month:
-                    current_month_risk = round(assets * 0.06, 2)
+                    current_month_risk = round(assets * 0.06, 2)  # 无法规避资金转入转出的影响。
                 else:
                     current_month_risk = CapitalManagement.objects.last().month_risk_6
                 flag = CapitalManagement.objects.filter(date=date_cursor, stock_name=stock_name)
@@ -763,7 +766,12 @@ def evaluate(request):
 
         query_result = pro.query('fina_indicator', ts_code=stock_code, strart_date=start_query_date.strftime("%Y%m%d"),
                                  end_date=query_date.strftime("%Y%m%d"))
+        express_query_result = pro.express(ts_code=stock_code,start_date=start_query_date.strftime("%Y%m%d"),
+                                           end_date=query_date.strftime("%Y%m%d"),
+                                           fields='ts_code, end_date, diluted_roe')
+
         query_result = query_result[['end_date', 'basic_eps_yoy', 'or_yoy', 'roe', 'q_op_qoq']]
+        express_query_result = express_query_result[['end_date', 'diluted_roe']]
 
         end_date = query_result['end_date'][0]
         period_cursor = datetime.datetime.strptime(end_date, '%Y%m%d').date()
@@ -800,6 +808,14 @@ def evaluate(request):
         front_q3_sales_rate = round(query_result['or_yoy'][2], 2)
 
         q_op_qoq = round(query_result['q_op_qoq'][0], 2)
+        # 业绩快报
+        if not express_query_result.empty:
+            express_diluted_roe = round(express_query_result['diluted_roe'][0], 2)
+            express_date = express_query_result['end_date'][0]
+            express_date = datetime.datetime.strptime(express_date, '%Y%m%d').date()
+        else:
+            express_diluted_roe = 0
+            express_date = query_date
 
         period_date = period_cursor
         date = query_date
@@ -814,7 +830,8 @@ def evaluate(request):
                                           front_y3_eps_rate=front_y3_eps_rate, forecast_eps_rate=forecast_eps_rate,
                                           front_q1_sales_rate=front_q1_sales_rate, q_op_qoq=q_op_qoq, date=query_date,
                                           front_q2_sales_rate=front_q2_sales_rate, period_date=period_cursor,
-                                          front_q3_sales_rate=front_q3_sales_rate, eps_rate=eps_rate, roe=roe)
+                                          front_q3_sales_rate=front_q3_sales_rate, eps_rate=eps_rate, roe=roe,
+                                          express_diluted_roe=express_diluted_roe, express_date=express_date)
 
     evaluate_query_result = EvaluateStocks.objects.all().order_by('-date')
 

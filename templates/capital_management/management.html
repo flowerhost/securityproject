@@ -8,6 +8,8 @@
 
 {% block breadcrumb %}
 <!-- Content Header (Page header) -->
+
+
     <section class="content-header">
       <h1>
         风险敞口管理
@@ -18,6 +20,14 @@
         <li class="active">风险敞口</li>
       </ol>
     </section>
+    <!--  删除线 -->
+    <style>
+        .line_through{
+          text-decoration:line-through;
+            color: blue;
+      }
+    </style>
+    <!-- end 删除线 -->
 {% endblock %}
 
 {% block content %}
@@ -71,9 +81,17 @@
                         <td class="text-blue bg-danger">{{ management.risk_6 }}</td>
                       {% endif %}
                       {% if management.buy < management.stop_loss %}
-                        <td class="text-red bg-success">{{ management.stock_name }}</td>
+                          {% if management.stock_close < management.stop_loss %}
+                                <td class="text-yellow  line_through bg-danger">{{ management.stock_name }}</td>
+                          {% else %}
+                                <td class="text-red bg-success">{{ management.stock_name }}</td>
+                          {% endif %}
                       {% else %}
-                        <td class="text-blue bg-danger">{{ management.stock_name }}</td>
+                          {% if management.stock_close < management.stop_loss %}
+                                <td class="text-yellow line_through bg-danger">{{ management.stock_name }}</td>
+                          {% else %}
+                                <td class="text-blue bg-danger">{{ management.stock_name }}</td>
+                          {% endif %}
                       {% endif %}
                       {% if management.buy < management.stop_loss %}
                         <td class="text-red bg-success">{{ management.stop_loss }}</td>
@@ -81,9 +99,17 @@
                         <td class="text-blue bg-danger">{{ management.stop_loss }}</td>
                       {% endif %}
                       {% if management.buy < management.stop_loss %}
-                        <td class="text-red bg-success">{{ management.buy }}</td>
+                          {% if management.stock_close < management.stop_loss %}
+                                <td class="text-yellow line_through bg-danger">{{ management.buy }}</td>
+                          {% else %}
+                                <td class="text-red bg-success">{{ management.buy }}</td>
+                          {% endif %}
                       {% else %}
-                        <td class="text-blue bg-danger">{{ management.buy }}</td>
+                          {% if management.stock_close < management.stop_loss %}
+                                <td class="text-yellow line_through bg-danger">{{ management.buy }}</td>
+                          {% else %}
+                                <td class="text-blue bg-danger">{{ management.buy }}</td>
+                          {% endif %}
                       {% endif %}
                       {% if management.buy < management.stop_loss %}
                         <td class="text-red bg-success">{{ management.stock_close }}</td>
