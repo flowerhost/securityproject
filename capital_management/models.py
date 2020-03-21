@@ -32,10 +32,10 @@ class Broker(models.Model):
 
 
 class CapitalAccount(models.Model):
-    """证券资金账户"""
+    """证券资金流水账户"""
 
     name = models.CharField(max_length=80, verbose_name='账户名称')  # name = Broker.nick_name
-    broker = models.ForeignKey(Broker, on_delete=models.CASCADE, verbose_name='证券公司')
+    broker = models.ForeignKey(Broker, on_delete=models.DO_NOTHING, verbose_name='证券公司')
     initial_capital = models.FloatField(verbose_name='期初资产')
 
     date = models.DateField(verbose_name='创建日期', default=timezone.now())
@@ -52,7 +52,7 @@ class CapitalAccount(models.Model):
 class AccountSurplus(models.Model):
     """账户盈余表"""
 
-    account = models.ForeignKey(CapitalAccount, on_delete=models.DO_NOTHING, verbose_name='账户名称')
+    account = models.ForeignKey(Broker, on_delete=models.DO_NOTHING, verbose_name='账户名称')
 
     total_assets = models.FloatField(verbose_name='总资产')
     market_capital = models.FloatField(verbose_name='总市值')
@@ -184,7 +184,7 @@ class TradeDailyReport(models.Model):
 
     date = models.DateField(verbose_name='结算日期', default=timezone.now())
 
-    account = models.ForeignKey(CapitalAccount, on_delete=models.CASCADE, verbose_name='证券账户')
+    account = models.ForeignKey(Broker, on_delete=models.CASCADE, verbose_name='证券账户')
     update_flag = models.BooleanField(verbose_name='数据更新标志')
 
     class Meta:
@@ -196,7 +196,7 @@ class TradeDailyReport(models.Model):
 
 class Positions(models.Model):
     """持仓情况表"""
-    account = models.ForeignKey(CapitalAccount, on_delete=models.CASCADE, verbose_name='资金账号')
+    account = models.ForeignKey(Broker, on_delete=models.DO_NOTHING, verbose_name='资金账号')
 
     code = models.CharField(max_length=10, verbose_name='股票代码')
     name = models.CharField(max_length=80, verbose_name='股票名称')
@@ -228,11 +228,12 @@ class Clearance(models.Model):
     fee = models.FloatField(verbose_name='交易费用')
     profit = models.FloatField(verbose_name='盈亏金额')
 
-    account = models.ForeignKey(CapitalAccount, on_delete=models.CASCADE, verbose_name='证券账户')
+    account = models.ForeignKey(Broker, on_delete=models.DO_NOTHING, verbose_name='证券账户')
 
     class Meta:
         verbose_name = '清仓股票情况'
         verbose_name_plural = '清仓股票情况'
+        get_latest_by = 'clear_date'
 
 
 class EventLog(models.Model):
@@ -249,7 +250,7 @@ class EventLog(models.Model):
 
     )
 
-    account = models.ForeignKey(CapitalAccount, on_delete=models.CASCADE,
+    account = models.ForeignKey(Broker, on_delete=models.DO_NOTHING,
                                 blank=True, null=True, verbose_name='资金账户变化')
     trade_details = models.ForeignKey(TradeLists, on_delete=models.CASCADE,
                                       blank=True, null=True, verbose_name='股票买卖变化')

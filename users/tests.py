@@ -55,13 +55,14 @@ pro = ts.pro_api()
 #
 # print(df)
 
-data = pro.query('stock_basic', exchange='', list_status='L')
+# data = pro.query('stock_basic', exchange='', list_status='L')
 con = sqlite3.connect('/Users/flowerhost/securityproject/db.sqlite3')
 c = con.cursor()
-data = data[['name', 'ts_code', 'area', 'symbol', 'industry', 'market']]
+# data = data[['name', 'ts_code', 'area', 'symbol', 'industry', 'market']]
+data = pd.read_csv('/Users/flowerhost/securityproject/data/reserve.csv')
 
-data.to_sql("capital_management_stockbasis", con, if_exists="append", index=False)
-c.execute("select * from capital_management_stockbasis")
-result = c.fetchall()
-print(result)
+data.to_sql("capital_management_tradelists", con, if_exists="append", index=False)
+# c.execute("select * from capital_management_stockbasis")
+# result = c.fetchall()
+# print(result)
 

@@ -137,7 +137,7 @@ option = {
         }
     },
     legend: {
-        data: ['日K', '止损点', 'MA10', 'MA20']
+        data: ['周K', '止损点', 'MA10', 'MA20']
     },
     grid: {
         left: '10%',
@@ -177,7 +177,7 @@ option = {
     ],
     series: [
         {
-            name: '日K',
+            name: '周K',
             type: 'candlestick',
             data: data0.values,
             itemStyle: {
@@ -285,6 +285,15 @@ option = {
             name: 'MA10',
             type: 'line',
             data: calculateMA(10),
+            smooth: true,
+            lineStyle: {
+                opacity: 0.5
+            }
+        },
+        {
+            name: 'MA20',
+            type: 'line',
+            data: calculateMA(20),
             smooth: true,
             lineStyle: {
                 opacity: 0.5
