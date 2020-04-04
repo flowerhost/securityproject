@@ -20,7 +20,7 @@ pro = ts.pro_api()
 def index(request):
     stocks = TradeLists.objects.values(
         'code', 'name', 'price', 'flag', 'date', 'trade_resource', 'quantity', 'total_capital',
-        'account__broker__capitalaccount__name', 'tradeperformance__close', 'tradeperformance__moving_average',
+        'account__name', 'tradeperformance__close', 'tradeperformance__moving_average',
         'tradeperformance__performance', ).order_by('-date')
 
     return render(request, 'capital_management/index.html', locals())
@@ -279,15 +279,12 @@ def balance(request):
         return redirect('capital_management:trade')
 
     """交易日报TradeDailyReport结算功能"""
-    trade_daily_name = ""
     # 1.判断TradeDailyReport状态
     if TradeDailyReport.objects.exists():
         daily_report_date_cursor = TradeDailyReport.objects.latest().date
-        # daily_report_end_date = TradeLists.objects.latest().date
         trade_daily_id_cursor = TradeDailyReport.objects.last().id
     else:
         daily_report_date_cursor = TradeLists.objects.earliest().date
-        # daily_report_end_date = TradeLists.objects.latest().date
         trade_daily_id_cursor = 0
     # 2.运算解析数据
     new_value_set = TradeLists.objects.filter(
@@ -305,14 +302,6 @@ def balance(request):
             pass
         else:
             trade_daily_id_cursor = trade_daily_id_cursor + 1
-            # 获得股票名称
-            # for _ in range(3):
-            #     try:
-            #         query_result = pro.query('stock_basic', ts_code=trade_daily_code, fields='name')
-            #     except:
-            #         time.sleep(1)
-            #     else:
-            #         trade_daily_name = query_result['name'].values[0]  # 股票名称
             trade_daily_name = new_value['name']
 
             trade_daily_amount = new_value['amount_num']  # 当日的买卖某股票的股数。
@@ -413,8 +402,8 @@ def balance(request):
                             code=stock_code, account_id=account_surplus_account_id).latest().clear_date
 
                         position_values = TradeDailyReport.objects.filter(
-                            date__gt=check_date, date__lte=date_cursor, code=stock_code).values(
-                            'account_id', 'code', 'name').annotate(
+                            date__gt=check_date, date__lte=date_cursor, code=stock_code,
+                            account_id=account_surplus_account_id).values('account_id', 'code', 'name').annotate(
                             stock_amount=Sum('amount'), stock_fee=Sum('total_fee'), stock_capital=Sum('total_capital'))
                         for position_values_data in position_values:
                             stock_amount = position_values_data['stock_amount']
@@ -424,7 +413,8 @@ def balance(request):
                             stock_cost = round(stock_capital / stock_amount * -1, 2)
                             stock_position_gain_loss = round((stock_amount * stock_close + stock_capital), 2)
                             stock_open_date = TradeDailyReport.objects.filter(
-                                code=stock_code, date__gte=check_date, date__lte=date_cursor).earliest().date
+                                code=stock_code, date__gt=check_date, date__lte=date_cursor,
+                                account_id=account_surplus_account_id).earliest().date
                     # 避免重复写数据Positions
                     check_positions = Positions.objects.filter(
                         account_id=account_surplus_account_id, code=stock_code, date=date_cursor)
@@ -710,24 +700,22 @@ def capital_manage(request):
                 check_month = AccountSurplus.objects.get(id=current_id - 1).date.month
 
             # 判断资金的风险敞口
+            # 最多3个交易标的。每个交易标的不得超过capital_2，总风险敞口不超过capital_6
             risk_2 = round(assets * 0.02, -2)
             risk_6 = round(assets * 0.06, -2)
-            # 最多3个交易标的。每个交易标的不得超过capital_2，总风险敞口不超过capital_6
-            # while capital_6:
-            #     object_number = CapitalManagement.objects.filter(date=caculate_date_cursor).Count()
-            #     if object_number < 3:
-            #
+
             if buy > stop_loss:
                 max_volume = round(risk_2 / (buy - stop_loss) - stock_amount, -2)
             else:
                 max_volume = stock_amount
 
             if CapitalManagement.objects.exists():
-                # 计算月初风险敞口，每月第一天进行资金账户进出转账更新。
+                # 计算月初第一个交易日风险敞口，每月第一天完成资金账户进出转账更新。
                 if check_month < current_month:
                     current_month_risk = round(assets * 0.06, 2)
                 else:
                     current_month_risk = CapitalManagement.objects.last().month_risk_6
+                # 避免数据重复
                 flag = CapitalManagement.objects.filter(date=date_cursor, stock_name=stock_name)
                 if flag:
                     pass
@@ -745,7 +733,7 @@ def capital_manage(request):
                                                  stop_loss=stop_loss, positions=stock_amount, stock_close=stock_close,
                                                  max_volume=max_volume, buy=buy, gain_loss=gain_loss_rate,
                                                  date=date_cursor, month_risk_6=current_month_risk)
-
+            # 网页端展示数据准备
             query_date = CapitalManagement.objects.latest().date
             capital_management = CapitalManagement.objects.filter(date=query_date).values(
                 'month_risk_6', 'risk_6', 'stock_name', 'stop_loss', 'stock_close', 'buy', 'gain_loss', 'positions',
@@ -760,7 +748,7 @@ def capital_manage(request):
                 risk_exposure = round(current_risk_measurement / 0.06, -2)
             else:
                 message = {'risk_message': "趋势向坏，敞口减少"}
-                risk_exposure = round(current_risk_measurement / 0.06, -2)
+                risk_exposure = current_risk_measurement
 
     return render(request, 'capital_management/management.html', locals())
 
@@ -869,3 +857,12 @@ def evaluate(request):
     evaluate_query_result = EvaluateStocks.objects.all().order_by('-date')
 
     return render(request, 'capital_management/evaluate.html', locals())
+
+
+def investor(request):
+    """日监控指标体系
+        目标：动态可量化地评估监控股票的表现。
+        方法：
+        1、建立评估指标体系：EPS、RPS、SMR、交易量突变率、主力吸筹/派发、ROE、行业强度、52周最高价/最低价
+
+    """

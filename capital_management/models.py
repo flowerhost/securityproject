@@ -22,7 +22,7 @@ class Broker(models.Model):
 
     def __str__(self):
         """返回模型的券商名"""
-        return self.nick_name
+        return self.name
 
     class Meta:
         verbose_name = '证券公司'
@@ -112,7 +112,7 @@ class TradeLists(models.Model):
     total_fee = models.FloatField(verbose_name='手续费用')
     total_capital = models.FloatField(verbose_name='交易总额')
     clear_flag = models.CharField(max_length=100, verbose_name='清仓标识---清仓股票表_ID')
-    account = models.ForeignKey(CapitalAccount, on_delete=models.CASCADE, verbose_name='交易账户')
+    account = models.ForeignKey(Broker, on_delete=models.CASCADE, verbose_name='交易账户')
     # 操作依据，即信息源头
     trade_resource = models.CharField(max_length=80, verbose_name='信息源头')
 
@@ -320,8 +320,8 @@ class MyStockLists(models.Model):
     change_rate = models.FloatField(verbose_name='涨跌幅度')
     price = models.FloatField(verbose_name='现价')
     change_amount = models.FloatField(verbose_name='涨跌额')
-    buy = models.FloatField(verbose_name='买价')
-    sell = models.FloatField(verbose_name='卖价')
+    high_price = models.FloatField(verbose_name='最高价')
+    low_price = models.FloatField(verbose_name='最低价')
     close = models.FloatField(verbose_name='收盘价')
     industry_group = models.CharField(max_length=80, verbose_name='细分行业')
     market_capitalization = models.FloatField(verbose_name='总市值')

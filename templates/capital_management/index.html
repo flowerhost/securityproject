@@ -165,13 +165,13 @@
                         <td class="text-blue bg-warning">{{ stock.tradeperformance__performance }}</td>
                     {% endif %}
                     {% if stock.flag == 'B' %}
-                        <td class="text-red bg-success">{{ stock.account__broker__capitalaccount__name }}</td>
+                        <td class="text-red bg-success">{{ stock.account__name }}</td>
                     {% elif stock.flag == 'S' %}
-                        <td class="text-green bg-danger">{{ stock.account__broker__capitalaccount__name }}</td>
+                        <td class="text-green bg-danger">{{ stock.account__name }}</td>
                     {% elif stock.flag == 'R' %}
-                        <td class="text-blue bg-gray-light">{{ stock.account__broker__capitalaccount__name }}</td>
+                        <td class="text-blue bg-gray-light">{{ stock.account__name }}</td>
                     {% else %}
-                        <td class="text-blue bg-warning">{{ stock.account__broker__capitalaccount__name }}</td>
+                        <td class="text-blue bg-warning">{{ stock.account__name }}</td>
                     {% endif %}
                   </tr>
                   {% empty %}

@@ -21,7 +21,8 @@ from itertools import chain
 ts.set_token('033ad3c72aef8ce38d29d34482058b87265b32d788fb6f24d2e0e8d6')
 pro = ts.pro_api()
 """2020-02-29 计算止损点"""
-# calendar = pro.query('trade_cal', start_date='20200203', end_date='20200228', is_open=1, fields=['cal_date'])
+calendar = pro.query('trade_cal', start_date='20200203', end_date='20200228', is_open=1, fields=['cal_date'])
+print(calendar['cal_date'].values[-1])
 #
 # stop_loss_data = ts.pro_bar(ts_code='603596.SH', start_date='20200214', end_date='20200228')
 #
@@ -56,12 +57,13 @@ pro = ts.pro_api()
 # print(df)
 
 # data = pro.query('stock_basic', exchange='', list_status='L')
-con = sqlite3.connect('/Users/flowerhost/securityproject/db.sqlite3')
-c = con.cursor()
-# data = data[['name', 'ts_code', 'area', 'symbol', 'industry', 'market']]
-data = pd.read_csv('/Users/flowerhost/securityproject/data/reserve.csv')
-
-data.to_sql("capital_management_tradelists", con, if_exists="append", index=False)
+"""数据备份"""
+# con = sqlite3.connect('/Users/flowerhost/securityproject/db.sqlite3')
+# c = con.cursor()
+# # data = data[['name', 'ts_code', 'area', 'symbol', 'industry', 'market']]
+# data = pd.read_csv('/Users/flowerhost/securityproject/data/reserve.csv')
+#
+# data.to_sql("capital_management_tradelists", con, if_exists="append", index=False)
 # c.execute("select * from capital_management_stockbasis")
 # result = c.fetchall()
 # print(result)
