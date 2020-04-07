@@ -9,6 +9,7 @@ from django.db.models import Sum
 
 import time
 import datetime
+import pandas as pd
 
 """tushare类数据接口"""
 import tushare as ts
@@ -759,9 +760,9 @@ def evaluate(request):
         2、获取行业RPS：行业强度位于前6位。参考值：>= 90
         3、通过tushare接口fina_indicator获得数据，写入EvaluateStocks表中。股票代码为通达信导入。
         4、计算eps: 最近三个年度增长率25%以上，下一年度25%以上的预测值；最近三个季度的增长率有大幅上涨，25%-30%以上为佳。
-        5、计算sales：or_yoy 最近三个季度营业收入增速趋势，或者上一季度的增长率25%以上。
+        5、计算sales：or_yoy 最近三个季度营业收入增速趋势，或者上一季度的增长率25%以上。TODO：错误
         6、计算ROE：每股净资产收益率大于17%以上，一般在25%---50%之间为优秀。
-        7、计算q_op_qoq： 最近一个季度的营业利润是增长的（环比增长率为正），而且是接近此股最高点时营业利润增长率。
+        7、计算q_op_qoq： 最近一个季度的营业利润是增长的（环比增长率为正），而且是接近此股最高点时营业利润增长率。TODO：错误
         8、计算吸筹/出货：未考虑好，待进一步研究学习。
         9、监控量比变化：当日成交量显著地放大50%以上。
         10、计算沪深港通交易占比。tushare接口：k_hold。
@@ -769,13 +770,6 @@ def evaluate(request):
             以上指标分配不同的权重，然后进行排名。对排名靠前的股票进行四项指标独立研究：EPS、ROE、SMR和吸筹/出货，同时发现量比变化。
         12、大盘处于上升趋势。
     """
-    # query_date = CapitalManagement.objects.last().date
-    # stock_code = '000001.SZ'
-    # price_strengthh_query_data = RelativePriceStrength.objects.values(
-    #     'RPS_50', 'RPS_120', 'RPS_industry_group', 'date', 'evaluation__eps_rate', 'evaluation__front_q1_eps_rate',
-    #     'evaluation__front_y1_eps_rate', 'evaluation__front_q1_sales_rate', 'evaluation__roe', 'evaluation__q_op_qoq',
-    #     'evaluation__period_date')
-    # RelativePriceStrength.objects.create(evaluation=EvaluateStocks.objects.get(code=stock_code))  # 增加关联
     if EvaluateStocks.objects.exists():
         id_cursor = EvaluateStocks.objects.last().id
     else:
@@ -860,9 +854,59 @@ def evaluate(request):
 
 
 def investor(request):
-    """日监控指标体系
-        目标：动态可量化地评估监控股票的表现。
-        方法：
-        1、建立评估指标体系：EPS、RPS、SMR、交易量突变率、主力吸筹/派发、ROE、行业强度、52周最高价/最低价
-
+    """日监控指标体系 2020-04-04
+        目标：动态可量化地评估监控股票的表现。接口名称fina_indicator。
+        方法：建立评估指标体系：EPS、RPS、SMR、量比变化追踪、主力吸筹/派发（待研究）、ROE、行业强度（待研究）、52周最高价股价下降幅度
+        1、RPS计算思路：
+        （当日收盘价-前250日收盘价）/前250日收盘价，即250日股价涨跌幅度，然后全市场来按照涨跌幅度来计算排名（1-99）。
+        2、SMR计算思路：
+        4部分：Sales growth rate over the last three quarters（季度销售同比增长率）; After-tax profit margins(季度税后净利率);
+        Pre-tax profit margins（年报税前毛利率）; Return on equity(ROE).
+        其中：Sales growth rate和 after-tax margins使用季报数据，ROE和pre-tax margins使用年报数据。
+        计算结果按照数值大小进行档次排名：A B C D E五档。每档占比20%。数值不全的，计算结果输出N/A。
+        对应tushare接口：分别是q_sales_yoy(季度销售同比增长率)、dt_netprofit_yoy（季度扣非税后净利率）、grossprofit_margin（毛利率）
+        和roe。
+        3、EPS计算思路：
+        @1评估过去3年间年度收益增长的稳定性和一致性：将过去3-5年中的季度收益点标出，然后用一条上涨趋势线连接，用以明确该股票偏离基本上涨趋势的程度。
+        即基本每股收益增长率非常稳定，相互之间的差值非常小。basic_eps_yoy之间差值变化很小，求其标准差。pandas.std()
+        @2至少连续8个季度的收益为正，否则输出结果为N/A。
+        @3计算最近2个季度收益同比增长率+3年收益增长率，季报同比增长率赋予更多的权重，需要考虑其标准差因素。
+        @4对每个股票的数值按照大小进行排名（1-99）。
+        4、量比变化追踪计算思路：Volume Percent Change. 求MA10日股票交易数值，计算（当日股票交易数值-MA10值）/MA10值。
+        5、52周最高价股价下降幅度。计算（52周股价最高价-当日收盘价）/52周最高价
+        6、综合排名计算思路：
+        EPS和RPS对股价的表现影响最大，所以赋予2倍权重，SMR、行业组相对强度和吸筹/出货百分比赋予单倍权重。按照数值大小进行排名（1-99）。
+        综合值 = EPS*2 + RPS*2 + SMR + 量比变化 - 52周股价下降幅度。缺少行业强度、主力吸筹/派发2个值。
     """
+    # RPS强度计算
+    # 1、获取交易日期,取最新的交易日，推算出前250日的日期。
+    end_date = datetime.date.today()
+    start_date = end_date - datetime.timedelta(weeks=60)
+    trade_date = pro.query('trade_cal', start_date=start_date.strftime("%Y%m%d"), end_date=end_date.strftime("%Y%m%d"),
+                           is_open=1, fields=['cal_date'])
+    daily_end_date = trade_date.tail(2)['cal_date'].values[0]
+    daily_start_date = trade_date.tail(250)['cal_date'].values[0]
+    # 2、分别获得最新日的交易数据收盘价，和250日前交易日期收盘价
+    df1 = pro.daily(trade_date=daily_start_date, fields=['ts_code', 'close'])
+    df2 = pro.daily(trade_date=daily_end_date, fields=['ts_code', 'close'])
+    data1 = pd.merge(df1, df2, on='ts_code')
+    data1.sort_values(by='ts_code', ascending=True, inplace=True)
+    data1.reset_index(drop=True, inplace=True)
+    # 3、计算涨跌幅度。进行排名。
+    data1['RPS'] = data1.apply(lambda x: round((x['close_y'] - x['close_x']) / x['close_x'], 2), axis=1).rank(
+        ascending=True)
+    x = data1['ts_code'].count()
+    data1['RPS'] = round(100 * data1['RPS'] / x, 1)
+    data1.to_csv('/Users/flowerhost/securityproject/data/RPS20200407.csv')
+    data1 = pd.read_csv('/Users/flowerhost/securityproject/data/SMR.csv')
+    data2 = pd.read_csv('/Users/flowerhost/securityproject/data/RPS20200407.csv')
+    data2 = data2[['ts_code', 'RPS']]
+    data_join = pd.merge(data1, data2, on='ts_code')
+    data_join['TOTAL'] = data_join.apply(lambda x: round(x['EPS'] * 2 + x['RPS'] * 2 + x['SMR'], 2), axis=1).rank(
+        ascending=True)
+    x = data_join['ts_code'].count()
+    data_join['TOTAL'] = round(100 * data_join['TOTAL'] / x, 1)
+    data_join.reset_index(drop=True, inplace=True)
+    data_join.drop(['Unnamed: 0'], axis=1, inplace=True)
+
+    data_join.to_csv('/Users/flowerhost/securityproject/data/RPS_SMR.csv')
