@@ -46,116 +46,133 @@ pro = ts.pro_api()
 #
 # print(result)
 # data = pro.query('stock_basic', exchange='', list_status='L')
+# data = data[['name', 'ts_code', 'area', 'symbol', 'industry', 'market']]
 """数据备份"""
 # con = sqlite3.connect('/Users/flowerhost/securityproject/db.sqlite3')
 # c = con.cursor()
-# # data = data[['name', 'ts_code', 'area', 'symbol', 'industry', 'market']]
-# data = pd.read_csv('/Users/flowerhost/securityproject/data/reserve.csv')
-#
+# data = pd.read_csv('/Users/flowerhost/securityproject/data/backup/trade20200407.csv')
 # data.to_sql("capital_management_tradelists", con, if_exists="append", index=False)
-# c.execute("select * from capital_management_stockbasis")
+# c.execute("select * from capital_management_capitalaccount")
 # result = c.fetchall()
 # print(result)
 """基本面SMR数据抽取 tushare 20200404"""
-query_date = datetime.date.today()
-start_query_date = query_date - datetime.timedelta(weeks=300)
-filename = '/Users/flowerhost/securityproject/data/eps20200404.csv'
-for query_date in ['20161231', '20170331', '20170630', '20170930', '20171231', '20180331', '20180630', '20180930', '20181231',
-                   '20190331', '20190630', '20190930', '20191231']:
-    query_data = pro.query('fina_indicator_vip', start_date=query_date, end_date=query_date)
-    df = query_data[['end_date', 'ts_code', 'basic_eps_yoy', 'roe', 'grossprofit_margin', 'q_sales_yoy', 'dt_netprofit_yoy']]
-    if os.path.exists(filename):
-        df.to_csv(filename, mode='a', header=None)
-    else:
-        df.to_csv(filename)
-
-
-industry_data = pro.index_member(ts_code='603596.SH')
-data = df['end_date'][0]
-query_day = datetime.datetime.strptime(data, '%Y%m%d').date()
-#
+# query_date = datetime.date.today()
+# start_query_date = query_date - datetime.timedelta(weeks=300)
+# filename ='/Users/flowerhost/securityproject/data/eps20200404.csv'
+# for query_date in ['20161231', '20170331', '20170630','20170930', '20171231',
+#                    '20180331', '20180630', '20180930', '20181231', '20190331',
+#                    '20190630', '20190930', '20191231']:
+#     query_data = pro.query('fina_indicator_vip', start_date=query_date, end_date=query_date)
+#     df = query_data[['end_date', 'ts_code', 'basic_eps_yoy', 'roe', 'grossprofit_margin', 'q_sales_yoy', 'dt_netprofit_yoy']]
+#     if os.path.exists(filename):
+#         df.to_csv(filename, mode='a', header=None)
+#     else:
+#         df.to_csv(filename)
 # print(df)
 """EPS数据清洗，删除roe空值的行20200404"""
-df = pd.read_csv('/Users/flowerhost/securityproject/data/eps20200404.csv')
-df = df[df['roe'].notna()]
-df.drop(['Unnamed: 0'], axis=1, inplace=True)
-df.sort_values(by=['ts_code', 'end_date'], ascending=[True, False], inplace=True)
-df.fillna(value=0, inplace=True)
-df.reset_index(drop=True, inplace=True)
-df.to_csv('/Users/flowerhost/securityproject/data/eps.csv')
+# df = pd.read_csv('/Users/flowerhost/securityproject/data/eps20200404.csv')
+# df = df[df['roe'].notna()]
+# df.drop(['Unnamed: 0'], axis=1, inplace=True)
+# df.sort_values(by=['ts_code', 'end_date'], ascending=[True, False], inplace=True)
+# df.fillna(value=0, inplace=True)
+# df.reset_index(drop=True, inplace=True)
+# df.to_csv('/Users/flowerhost/securityproject/data/eps.csv')
 
 """EPS切片，完成标准差计算20200404"""
-df = pd.read_csv('/Users/flowerhost/securityproject/data/eps.csv')
-df = df.reset_index(drop=True)
-
-df = df.groupby('ts_code').filter(lambda g: g.ts_code.count() >12)
-data_EPS = df.groupby('ts_code')['basic_eps_yoy'].std().rank(ascending=True)  # 按照季报收益稳定性进行排名。值越小越稳定。
-# 取每组第一个值求和SMR,进行排名。
-data_SMR = df.groupby('ts_code', as_index=False)['roe', 'dt_netprofit_yoy', 'q_sales_yoy', 'grossprofit_margin'].first()
-data_SMR['SMR'] = data_SMR.iloc[:, 1:5].sum(axis=1).rank(ascending=True)
-data_join = pd.merge(data_EPS, data_SMR, on='ts_code')
-# 排名转化为百分比
-x = data_join['ts_code'].count()
-data_join['SMR'] = round(100*data_join['SMR']/x, 1)
-data_join['EPS_Stability'] = round(100*data_join['basic_eps_yoy']/x, 1)
-# print(data_join)
-data = df.groupby('ts_code')['ts_code', 'basic_eps_yoy'].head(2)
-data = data.groupby('ts_code').sum()*1.5  # 最近两个季度的eps权重1.5
-df['end_date'] = df['end_date'].astype('str')  # 转化为str型。
-data_year = df[df['end_date'].str.contains('1231')].groupby('ts_code').head(3)
-data_year = data_year[['end_date', 'ts_code', 'basic_eps_yoy']].groupby('ts_code').sum()
-data_year = pd.merge(data, data_year, on='ts_code')
-data_year['EPS'] = data_year.iloc[:, 1:3].sum(axis=1).rank(ascending=True)
-data_join = pd.merge(data_join, data_year, on='ts_code')
-data_join['EPS'] = round(100*data_join['EPS']/x, 1)
-data_join = data_join[['ts_code', 'EPS', 'SMR', 'EPS_Stability']]
-
-data_join.to_csv('/Users/flowerhost/securityproject/data/SMR.csv')
+# df = pd.read_csv('/Users/flowerhost/securityproject/data/eps.csv')
+# df = df.reset_index(drop=True)
+#
+# df = df.groupby('ts_code').filter(lambda g: g.ts_code.count() >12)
+# df.to_csv('/Users/flowerhost/securityproject/data/group.csv')
+# data_EPS = df.groupby('ts_code')['basic_eps_yoy'].std().rank(ascending=True)  # 按照季报收益稳定性进行排名。值越小越稳定。
+# # 取每组第一个值求和SMR,进行排名。
+# data_SMR = df.groupby('ts_code', as_index=False)['roe', 'dt_netprofit_yoy', 'q_sales_yoy', 'grossprofit_margin'].first()
+# data_SMR['SMR'] = data_SMR.iloc[:, 1:5].sum(axis=1).rank(ascending=True)
+# data_join = pd.merge(data_EPS, data_SMR, on='ts_code')
+# # 排名转化为百分比
+# x = data_join['ts_code'].count()
+# data_join['SMR'] = round(100*data_join['SMR']/x, 1)
+# data_join['EPS_Stability'] = round(100*data_join['basic_eps_yoy']/x, 1)
+# # print(data_join)
+# data_new_quarter = df.groupby('ts_code')['ts_code', 'basic_eps_yoy'].head(1)
+# data_new_quarter['new_quarter'] = df['basic_eps_yoy']
+# print(data_new_quarter)
+# data = df.groupby('ts_code')['ts_code', 'basic_eps_yoy'].head(2)
+# print(data)
+# data = data.groupby('ts_code').sum()*1.5  # 最近两个季度的eps权重1.5
+# df['end_date'] = df['end_date'].astype('str')  # 转化为str型。
+# data_year = df[df['end_date'].str.contains('1231')].groupby('ts_code').head(3)
+# data_year = data_year[['end_date', 'ts_code', 'basic_eps_yoy']].groupby('ts_code').sum()
+# data_year = pd.merge(data, data_year, on='ts_code')
+# data_year['EPS'] = data_year.iloc[:, 1:3].sum(axis=1).rank(ascending=True)
+# data_join = pd.merge(data_join, data_year, on='ts_code')
+# data_join = pd.merge(data_join, data_new_quarter, on='ts_code')
+# data_join['EPS'] = round(100*data_join['EPS']/x, 1)
+# data_join = data_join[['ts_code', 'EPS', 'SMR', 'EPS_Stability', 'new_quarter']]
+#
+# data_join.to_csv('/Users/flowerhost/securityproject/data/SMR.csv')
 
 """RPS强度指标 202020407"""
-# 1、获取交易日期,取最新的交易日，推算出前250日的日期。
-end_date = datetime.date.today()
-start_date = end_date - datetime.timedelta(weeks=60)
-trade_date = pro.query('trade_cal', start_date=start_date.strftime("%Y%m%d"), end_date=end_date.strftime("%Y%m%d"), is_open=1, fields=['cal_date'])
-daily_end_date = trade_date.tail(2)['cal_date'].values[0]
-daily_start_date = trade_date.tail(250)['cal_date'].values[0]
-# 2、分别获得最新日的交易数据收盘价，和250日前交易日期收盘价
-df1 = pro.daily(trade_date=daily_start_date, fields=['ts_code', 'close'])
-df2 = pro.daily(trade_date=daily_end_date, fields=['ts_code', 'close'])
-data1 = pd.merge(df1, df2, on='ts_code')
-data1.sort_values(by='ts_code', ascending=True, inplace=True)
-data1.reset_index(drop=True, inplace=True)
-# 3、计算涨跌幅度。进行排名。
-data1['RPS'] = data1.apply(lambda x: round((x['close_y']-x['close_x'])/x['close_x'], 2), axis=1).rank(ascending=True)
-x = data1['ts_code'].count()
-data1['RPS'] = round(100*data1['RPS']/x, 1)
-data1.to_csv('/Users/flowerhost/securityproject/data/RPS20200407.csv')
-data1 = pd.read_csv('/Users/flowerhost/securityproject/data/SMR.csv')
-data2 = pd.read_csv('/Users/flowerhost/securityproject/data/RPS20200407.csv')
-data2 = data2[['ts_code', 'RPS']]
-data_join = pd.merge(data1, data2, on='ts_code')
-data_join['TOTAL'] = data_join.apply(lambda x: round(x['EPS']*2 + x['RPS']*2 + x['SMR'], 2), axis=1).rank(ascending=True)
-x = data_join['ts_code'].count()
-data_join['TOTAL'] = round(100*data_join['TOTAL']/x, 1)
-data_join.reset_index(drop=True, inplace=True)
-data_join.drop(['Unnamed: 0'], axis=1, inplace=True)
+# # 1、获取交易日期,取最新的交易日，推算出前250日的日期。
+# end_date = datetime.date.today()
+# start_date = end_date - datetime.timedelta(weeks=60)
+# trade_date = pro.query('trade_cal', start_date=start_date.strftime("%Y%m%d"), end_date=end_date.strftime("%Y%m%d"), is_open=1, fields=['cal_date'])
+# daily_end_date = trade_date.tail(2)['cal_date'].values[0]
+# daily_start_date = trade_date.tail(250)['cal_date'].values[0]
+# # 2、分别获得最新日的交易数据收盘价，和250日前交易日期收盘价
+# df1 = pro.daily(trade_date=daily_start_date, fields=['ts_code', 'close', 'high'])
+# df2 = pro.daily(trade_date=daily_end_date, fields=['ts_code', 'close'])
+# data1 = pd.merge(df1, df2, on='ts_code')
+# data1.sort_values(by='ts_code', ascending=True, inplace=True)
+# data1.reset_index(drop=True, inplace=True)
+# # 3、计算涨跌幅度。进行排名。
+# data1['RPS'] = data1.apply(lambda x: round((x['close_y']-x['close_x'])/x['close_x'], 2), axis=1).rank(ascending=True)
+# x = data1['ts_code'].count()
+# data1['RPS'] = round(100*data1['RPS']/x, 1)
+# data1['decline_range'] = data1.apply(lambda x: round((x['close_y']-x['high'])/x['high'], 2), axis=1)
+# data1.to_csv('/Users/flowerhost/securityproject/data/RPS20200407.csv')
+# data1 = pd.read_csv('/Users/flowerhost/securityproject/data/SMR.csv')
+# data2 = pd.read_csv('/Users/flowerhost/securityproject/data/RPS20200407.csv')
+# data2 = data2[['ts_code', 'RPS', 'decline_range']]
+# data_join = pd.merge(data1, data2, on='ts_code')
+# data_join['TOTAL'] = data_join.apply(lambda x: round(x['EPS']*2 + x['RPS']*2 + x['SMR'] + x['decline_range'], 2), axis=1).rank(ascending=True)
+# x = data_join['ts_code'].count()
+# data_join['TOTAL'] = round(100*data_join['TOTAL']/x, 1)
+# data_join.reset_index(drop=True, inplace=True)
+# data_join.drop(['Unnamed: 0'], axis=1, inplace=True)
+#
+# data_join.to_csv('/Users/flowerhost/securityproject/data/RPS_SMR.csv')
+"""计算52周最高点涨降幅度"""
+# end_date = datetime.date.today()
+# start_date = end_date - datetime.timedelta(weeks=60)
+# trade_date = pro.query('trade_cal', start_date=start_date.strftime("%Y%m%d"), end_date=end_date.strftime("%Y%m%d"), is_open=1, fields=['cal_date'])
+# query_date = trade_date.tail(250)['cal_date']
+# data = pd.DataFrame()
+# for query_day in query_date:
+#     query_data = pro.monthly(trade_date=query_day, fields=['trade_date', 'ts_code', 'high'])
+#     data = data.append(query_data, ignore_index=True)
+#
+# first_date = '%d%02d01'%(end_date.year, end_date.month)
+# daily_date = pro.query('trade_cal', start_date=first_date, end_date=end_date.strftime("%Y%m%d"), is_open=1, fields=['cal_date'])
+# for query_date in daily_date['cal_date']:
+#     query_data = pro.daily(trade_date=query_date, fields=['trade_date', 'ts_code', 'high'])
+#     data = data.append(query_data, ignore_index=True)
+#     print(query_date)
+#
+# data.to_csv('/Users/flowerhost/securityproject/data/monthly.csv')
 
-data_join.to_csv('/Users/flowerhost/securityproject/data/RPS_SMR.csv')
-"""SMR计算，原始做法。使用for循环。20200404"""
-# data_duplicate = df.drop_duplicates(subset=['ts_code'], keep='first', inplace=False)
-# data_duplicate = data_duplicate[['ts_code']]
+# high_data = pd.read_csv('/Users/flowerhost/securityproject/data/monthly.csv')
+# high_data = high_data.groupby('ts_code')['high'].max()
+# print(high_data)
 #
-# for ts_code in data_duplicate.values:
-#
-#     data = df[df['ts_code'].isin(ts_code)]
-#     data = data.reset_index(drop=True)
-#     data_count = data['ts_code'].value_counts()
-#
-#     data_std = round(data['basic_eps_yoy'].std(), 2)
-#     data_profit = data['q_sales_yoy'][0]
-#     data_netprofit = data['dt_netprofit_yoy'][0]
-#     data_grossprofit = data['grossprofit_margin'][0]
-#     data_roe = data['roe'][0]
-#     SMR = round(data_roe + data_netprofit + data_grossprofit + data_profit, 2)
-#
-#     print(ts_code[0], SMR)
+# data1 = pd.merge(df1, df2, on='ts_code')
+# data1.sort_values(by='ts_code', ascending=True, inplace=True)
+# data1.reset_index(drop=True, inplace=True)
+
+"""申万行业指数"""
+# data = pro.sw_daily(ts_code='851911.SI')
+# l1 = pro.index_classify(level='L3', src='SW')
+# print(l1)
+
+df = ts.pro_bar(ts_code='603596.SH', start_date='2020101', end_date='20200414', ma=[5, 20, 50])
+print(df)

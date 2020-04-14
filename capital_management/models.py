@@ -388,3 +388,24 @@ class RelativePriceStrength(models.Model):
     evaluation = models.ForeignKey(EvaluateStocks, on_delete=models.DO_NOTHING, verbose_name='基本面评价')
 
     date = models.DateField(verbose_name='计算日期')
+
+
+class CumulativeRank(models.Model):
+    """全市场综合排名"""
+    code = models.CharField(max_length=10, verbose_name='股票代码')
+
+    cumulative_rank = models.FloatField(verbose_name='综合排名')
+    new_quarter_eps = models.FloatField(verbose_name='最新季度EPS')
+    eps = models.FloatField(verbose_name='EPS')
+    rps = models.FloatField(verbose_name='RPS')
+    smr = models.FloatField(verbose_name='SMR')
+    eps_stability = models.FloatField(verbose_name='收益稳定性')
+    decline_range = models.FloatField(verbose_name='250日降幅')
+    volume_ratio = models.FloatField(verbose_name='成交量比')
+    period_date = models.DateField(verbose_name='最新报告期')
+    ann_date = models.DateField(verbose_name='公告日期')
+
+    class Meta:
+        verbose_name = '全市场综合排名'
+        get_latest_by = 'ann_date'
+

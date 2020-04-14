@@ -10,14 +10,22 @@
 <!-- Content Header (Page header) -->
     <section class="content-header">
       <h1>
-        基本面评价
+        全市场综合排名
         <small></small>
       </h1>
       <ol class="breadcrumb">
         <li><a href="#"><i class="fa fa-dashboard"></i> 主页</a></li>
-        <li class="active">基本面评价</li>
+        <li class="active">全市场综合排名</li>
       </ol>
     </section>
+    <!--  删除线 -->
+    <style>
+        .line_through{
+          text-decoration:line-through;
+            color: blue;
+      }
+    </style>
+    <!-- end 删除线 -->
 {% endblock %}
 
 {% block content %}
@@ -29,15 +37,7 @@
 
         <div class="box">
         <div class="box-header">
-          <h3 class="box-title">
-               <form action="{% url 'capital_management:evaluate' %}" method="post">
-                {% csrf_token %}
-                {{ form.errors }}
-                <input type="text" name="stock_code">
-                <input type="submit" value="查询">
-                <p style="color: red">{{ error_msg }}</p>
-               </form>
-          </h3>
+         <h3 class="box-title">全市场综合排名<small>(不含基金)</small></h3>
         </div>
         <!-- /.box-header -->
         <div class="box-body">
@@ -46,56 +46,101 @@
                 <thead class="text-center text-muted bg-danger">
                     <tr>
                         <th>序号</th>
+                        <th>综合排名</th>
                         <th>股票代码</th>
-                        <th>快报-股本回报率</th>
-                        <th>业绩快报报告期</th>
-                        <th>最新收益增长率</th>
-                        <th>前一季度收益增长率</th>
-                        <th>前二季度收益增长率</th>
-                        <th>前三季度收益增长率</th>
-                        <th>前一年度收益增长率</th>
-                        <th>前二年度收益增长率</th>
-                        <th>前一季度销售增长率</th>
-                        <th>股本回报率</th>
-                        <th>营业利润环比增长率(季度)</th>
+                        <th>最新季度增长率（EPS）</th>
+                        <th>综合收益增长率(EPS)</th>
+                        <th>股票走势强度(RPS)</th>
+                        <th>销售利润回报增长率(SMR)</th>
+                        <th>收益稳定性</th>
+                        <th>52周高点降幅(%)</th>
+                        <th>成交量比</th>
+                        <th>公告日期</th>
                         <th>最新报告期</th>
-                        <th>更新日期</th>
                     </tr>
                 </thead>
                 <tbody>
 
-                  {% for evaluation in evaluate_query_result %}
+                  {% for cumulation in cumulative_ranks %}
                   <tr>
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ forloop.counter }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ forloop.counter }}</td>
+                        {% endif %}
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.cumulative_rank }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.cumulative_rank }}</td>
+                        {% endif %}
 
-                        <td class="text-blue bg-danger">{{ forloop.counter }}</td>
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.code }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.code }}</td>
+                        {% endif %}
 
-                        <td class="text-blue bg-danger">{{ evaluation.code }}</td>
+                         {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.new_quarter_eps }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.new_quarter_eps }}</td>
+                        {% endif %}
 
-                        <td class="text-blue bg-danger">{{ evaluation.express_diluted_roe }}</td>
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.eps }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.eps }}</td>
+                        {% endif %}
 
-                        <td class="text-blue bg-danger">{{ evaluation.express_date }}</td>
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.rps }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.rps }}</td>
+                        {% endif %}
 
-                        <td class="text-blue bg-danger">{{ evaluation.eps_rate }}</td>
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.smr }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.smr }}</td>
+                        {% endif %}
 
-                        <td class="text-blue bg-danger">{{ evaluation.front_q1_eps_rate }}</td>
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.eps_stability }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.eps_stability }}</td>
+                        {% endif %}
 
-                        <td class="text-blue bg-danger">{{ evaluation.front_q2_eps_rate }}</td>
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.decline_range }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.decline_range }}</td>
+                        {% endif %}
 
-                        <td class="text-blue bg-danger">{{ evaluation.front_q3_eps_rate }}</td>
+                        {% if cumulation.eps_stability < 30 %}
+                            {% if cumulation.volume_ratio > 2 %}
+                                <td class="text-red line_through bg-warning">{{ cumulation.volume_ratio }}</td>
+                            {% else %}
+                                <td class="text-red bg-success">{{ cumulation.volume_ratio }}</td>
+                            {% endif %}
+                        {% else %}
+                            {% if cumulation.volume_ratio > 2 %}
+                                <td class="text-blue line_through bg-warning">{{ cumulation.volume_ratio }}</td>
+                            {% else %}
+                                <td class="text-blue bg-danger">{{ cumulation.volume_ratio }}</td>
+                            {% endif %}
+                        {% endif %}
 
-                        <td class="text-blue bg-danger">{{ evaluation.front_y1_eps_rate }}</td>
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.ann_date }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.ann_date }}</td>
+                        {% endif %}
 
-                        <td class="text-blue bg-danger">{{ evaluation.front_y2_eps_rate }}</td>
-
-                        <td class="text-blue bg-danger">{{ evaluation.front_q1_sales_rate }}</td>
-
-                        <td class="text-blue bg-danger">{{ evaluation.roe }}</td>
-
-                        <td class="text-blue bg-danger">{{ evaluation.q_op_qoq }}</td>
-
-                        <td class="text-blue bg-danger">{{ evaluation.period_date }}</td>
-
-                        <td class="text-blue bg-danger">{{ evaluation.date }}</td>
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.period_date }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.period_date }}</td>
+                        {% endif %}
 
                   </tr>
                   {% empty %}

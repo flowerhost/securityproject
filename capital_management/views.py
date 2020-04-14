@@ -2,11 +2,12 @@
 
 from django.shortcuts import render, redirect
 from .models import TradeLists, TradeDailyReport, CapitalAccount, AccountSurplus, Clearance, TradePerformance, Broker
-from .models import Positions, CapitalManagement, EvaluateStocks
+from .models import Positions, CapitalManagement, EvaluateStocks, CumulativeRank
 from .form import BrokerForm, TradeListsForm, CapitalAccountForm
 
 from django.db.models import Sum
 
+import sqlite3
 import time
 import datetime
 import pandas as pd
@@ -143,7 +144,7 @@ def line(request):
         for _ in range(3):
             try:
                 query_result = pro.query('stock_basic', ts_code=stock_code, fields='name')
-                line_data = ts.pro_bar(ts_code=stock_code, freq='W', start_date=start_query_date.strftime("%Y%m%d"),
+                line_data = ts.pro_bar(ts_code=stock_code, freq='D', start_date=start_query_date.strftime("%Y%m%d"),
                                        end_date=query_date.strftime("%Y%m%d"), adj='qfq')
             except:
                 time.sleep(0)
@@ -333,7 +334,15 @@ def balance(request):
     else:
         positions_id_cursor = 0
 
-    statistic_date = datetime.date.today()
+    """判断提取数据时间"""
+    # 如果是17：00之前，提取前一交易日数据
+    check_time = datetime.datetime.strptime(str(datetime.date.today()) + '17:00', '%Y-%m-%d%H:%M')
+    now_time = datetime.datetime.now()
+    if now_time < check_time:
+        statistic_date = datetime.date.today() - datetime.timedelta(days=1)
+    else:
+        statistic_date = datetime.date.today()
+
     # 获取交易日历
     calendar = []
     for _ in range(3):
@@ -605,6 +614,137 @@ def balance(request):
 
         performance_score_date = performance_score_date + datetime.timedelta(days=1)
 
+    """全市场综合排名"""
+    # smr计算
+    # 1、提取财务数据。原则：完整三年年报+最新两期季报，包括期间所有的季报数据。
+    prepare_data = pd.DataFrame()
+    high_data = pd.DataFrame()
+    for query_date in ['20161231',
+                       '20170331', '20170630', '20170930', '20171231',
+                       '20180331', '20180630', '20180930', '20181231',
+                       '20190331', '20190630', '20190930', '20191231',
+                       '20200331']:
+        query_data = pro.query('fina_indicator_vip', start_date=query_date, end_date=query_date)
+        prepare_data = prepare_data.append(query_data, ignore_index=True)
+    # 2、财务数据清洗，删除roe为空值的行。
+    df = prepare_data[prepare_data['roe'].notna()]
+    df.sort_values(by=['ts_code', 'end_date'], ascending=[True, False], inplace=True)
+    df.fillna(value=0, inplace=True)
+    df.reset_index(drop=True, inplace=True)
+
+    # 3、数据切片，完成个股eps标准差计算，评估每股收益稳定性。
+    df = df.groupby('ts_code').filter(lambda g: g.ts_code.count() > 12)
+    df.to_csv('/Users/flowerhost/securityproject/data/orginal.csv')
+    eps_stability = df.groupby('ts_code')['basic_eps_yoy'].std().rank(ascending=True)  # 按照季报收益稳定性进行排名。值越小越稳定。
+
+    # 4、取每组第一个值求和smr,并排名。
+    smr = df.groupby('ts_code', as_index=False)[
+        'roe', 'dt_netprofit_yoy', 'q_sales_yoy', 'grossprofit_margin', 'end_date', 'ann_date'].first()
+    smr['smr'] = smr.iloc[:, 1:5].sum(axis=1).rank(ascending=True)
+
+    # 5、数据联结组合。
+    data_join = pd.merge(eps_stability, smr, on='ts_code')
+
+    # 6、smr和eps稳定性排名转化为百分制。
+    x = data_join['ts_code'].count()
+    data_join['smr'] = round(100 * data_join['smr'] / x, 1)
+    data_join['eps_stability'] = round(100 * data_join['basic_eps_yoy'] / x, 1)
+
+    # 7、eps排名，计算公式：最新两季度季报权重1.5，三年年报权重1.0，求5者之和eps。
+    data_quarter_new = df.groupby('ts_code')['ts_code', 'basic_eps_yoy'].head(1)
+    data_quarter_new['new_quarter_eps'] = round(data_quarter_new['basic_eps_yoy'], 2)
+    data_quarter_new.to_csv('/Users/flowerhost/securityproject/data/debugeps.csv')
+    data_quarter = df.groupby('ts_code')['ts_code', 'basic_eps_yoy'].head(2)
+    data_quarter.to_csv('/Users/flowerhost/securityproject/data/debug.csv')
+    data_quarter = data_quarter.groupby('ts_code').sum() * 1.5  # 最近两个季度的eps权重1.5
+    df['end_date'] = df['end_date'].astype('str')  # 转化为str型，为下条语句使用。
+    data_year = df[df['end_date'].str.contains('1231')].groupby('ts_code').head(3)
+    data_year = data_year[['end_date', 'ts_code', 'basic_eps_yoy']].groupby('ts_code').sum()
+    data_year = pd.merge(data_quarter, data_year, on='ts_code')
+    data_year['eps'] = data_year.iloc[:, 1:3].sum(axis=1).rank(ascending=True)
+
+    # 8、数据联合
+    eps_smr_stability = pd.merge(data_join, data_year, on='ts_code')
+    eps_smr_stability = pd.merge(eps_smr_stability, data_quarter_new, on='ts_code')
+    eps_smr_stability['eps'] = round(100 * eps_smr_stability['eps'] / x, 1)
+    eps_smr_stability = eps_smr_stability[['ts_code', 'new_quarter_eps', 'eps', 'smr', 'eps_stability', 'end_date',
+                                           'ann_date']]
+
+    # rps强度计算
+    # 9、获取交易日期,取最新的交易日，推算出前250日的日期。
+    end_date = datetime.date.today()
+    start_date = end_date - datetime.timedelta(weeks=60)
+    trade_date = pro.query('trade_cal', start_date=start_date.strftime("%Y%m%d"),
+                           end_date=end_date.strftime("%Y%m%d"), is_open=1, fields=['cal_date'])
+
+    # 判断时间，当前提取时间17：00以后，取当日数据，否则取前一日数据。
+    check_time = datetime.datetime.strptime(str(datetime.date.today()) + '17:00', '%Y-%m-%d%H:%M')
+    now_time = datetime.datetime.now()
+    if now_time > check_time:
+        daily_end_date = trade_date.tail(1)['cal_date'].values[0]
+    else:
+        daily_end_date = trade_date.tail(2)['cal_date'].values[0]
+
+    daily_start_date = trade_date.tail(250)['cal_date'].values[0]
+
+    # 10、获得最新日的交易数据收盘价和成交量比.
+    df_volume_ratio = pro.daily_basic(
+        ts_code='', trade_date=daily_end_date, fields=['ts_code', 'volume_ratio'])
+    df_history = pro.daily(trade_date=daily_start_date, fields=['ts_code', 'close'])
+    df_current = pro.daily(trade_date=daily_end_date, fields=['ts_code', 'close'])
+    data_rps = pd.merge(df_history, df_current, on='ts_code')
+
+    # 11、获取52周最高价
+    for query_date in daily_start_date:
+        query_data = pro.monthly(trade_date=query_date, fields=['trade_date', 'ts_code', 'high'])
+        high_data = high_data.append(query_data, ignore_index=True)
+
+    first_date = '%d%2d01' % (end_date.year, end_date.month)
+    daily_date = pro.query('trade_cal', start_date=first_date,
+                           end_date=end_date.strftime("%Y%m%d"), is_open=1, fields=['cal_date'])
+
+    for query_date in daily_date['cal_date']:
+        query_data = pro.daily(trade_date=query_date, fields=['trade_date', 'ts_code', 'high'])
+        high_data = high_data.append(query_data, ignore_index=True)
+    high_data = high_data.groupby('ts_code')['high'].max()
+
+    # 12、数据联合
+    data_rps = pd.merge(data_rps, high_data, on='ts_code')
+    data_rps = pd.merge(data_rps, df_volume_ratio, on='ts_code')
+    data_rps.sort_values(by='ts_code', ascending=True, inplace=True)
+    data_rps.reset_index(drop=True, inplace=True)
+
+    # 13、计算涨跌幅度并排名，计算52周最高价与当前价的下降幅度。
+    data_rps['rps'] = data_rps.apply(lambda x: round((x['close_y'] - x['close_x']) / x['close_x'], 2), axis=1).rank(
+        ascending=True)
+    x = data_rps['ts_code'].count()
+    data_rps['rps'] = round(100 * data_rps['rps'] / x, 1)
+    data_rps['decline_range'] = data_rps.apply(lambda x: round(100 * (x['close_y'] - x['high']) / x['high'], 1),
+                                               axis=1)
+
+    # 14、数据联合,计算综合排名。
+    data_cumulative_rank = pd.merge(eps_smr_stability, data_rps, on='ts_code')
+    data_cumulative_rank = pd.merge(data_cumulative_rank, high_data, on='ts_code')
+    data_cumulative_rank['cumulative_rank'] = data_cumulative_rank.apply(
+        lambda x: round(x['eps'] * 2 + x['rps'] * 2 + x['smr'] + x['decline_range'], 2), axis=1).rank(
+        ascending=True)
+    x = data_cumulative_rank['ts_code'].count()
+    data_cumulative_rank['cumulative_rank'] = round(100 * data_cumulative_rank['cumulative_rank'] / x, 1)
+    data_cumulative_rank.reset_index(drop=True, inplace=True)
+    data_cumulative_rank['period_date'] = pd.to_datetime(data_cumulative_rank['end_date'], dayfirst=True)
+    data_cumulative_rank['period_date'] = data_cumulative_rank['period_date'].dt.strftime('%Y-%m-%d')
+    data_cumulative_rank['ann_date'] = pd.to_datetime(data_cumulative_rank['ann_date'], dayfirst=True)
+    data_cumulative_rank['ann_date'] = data_cumulative_rank['ann_date'].dt.strftime('%Y-%m-%d')
+    data_cumulative_rank['code'] = data_cumulative_rank['ts_code']
+    data_cumulative_rank = data_cumulative_rank[
+        ['code', 'cumulative_rank', 'new_quarter_eps', 'eps', 'rps', 'smr', 'eps_stability', 'decline_range',
+         'volume_ratio', 'period_date', 'ann_date']]
+
+    # 15、写数据库
+    con = sqlite3.connect('/Users/flowerhost/securityproject/db.sqlite3')
+    data_cumulative_rank.to_sql("capital_management_cumulativerank", con, if_exists="replace", index=False)
+    data_cumulative_rank.to_csv('/Users/flowerhost/securityproject/data/RPS_SMR.csv')
+
     return redirect('capital_management:index')
 
 
@@ -656,9 +796,10 @@ def capital_manage(request):
             cal = pro.query('trade_cal', start_date=gain_loss_date.strftime("%Y%m%d"),
                             end_date=cal_date[0], is_open=1, fields=['cal_date'])
             stop_loss_data = ts.pro_bar(ts_code=stock_code, adj='qfq', start_date=cal['cal_date'].values[-11],
-                                        end_date=cal['cal_date'].values[-1])
+                                        end_date=cal['cal_date'].values[-1], ma=[10])
+            print(stop_loss_data.head())
             stop_loss_data = stop_loss_data.sort_values(by=['trade_date'], ascending=[True])
-            stop_loss_data = stop_loss_data[['trade_date', 'low', 'close']].values.tolist()
+            stop_loss_data = stop_loss_data[['trade_date', 'low', 'close', 'ma10']].values.tolist()
             # 比较前一交易日的最低价
             for i in range(day_count):
                 if i == 0:
@@ -670,8 +811,15 @@ def capital_manage(request):
                         if early_low > latest_low:
                             count_number = count_number + 1
                             sum_values = sum_values + early_low - latest_low
+                        else:
+                            # 极特殊情况，健帆生物20200414。个股强力拉升不回调，除0错误。
+                            ma10 = stop_loss_data[i][3]
 
-            result = round((stop_loss_data[-2][1] - 3 * sum_values / count_number), 2)
+            if count_number == 0:
+                result = ma10
+            else:
+                result = round((stop_loss_data[-2][1] - 3 * sum_values / count_number), 2)
+
             if CapitalManagement.objects.exists():
                 last_loss_date = cal['cal_date'].values[-2]
                 last_loss_date = datetime.datetime.strptime(last_loss_date, "%Y%m%d")
@@ -688,9 +836,9 @@ def capital_manage(request):
 
             stock_close = stop_loss_data[-1][2]
             if buy > 0:
-                gain_loss_rate = round((stock_close - buy) / buy, 2)
+                gain_loss_rate = round(100*(stock_close - buy) / buy, 2)
             else:
-                gain_loss_rate = round(-1*(stock_close - buy)/buy, 2)
+                gain_loss_rate = round(-100*(stock_close - buy)/buy, 2)
             # 获取月初资产*6%
             assets = AccountSurplus.objects.get(date=date_cursor).total_assets
             current_month = datetime.datetime.strptime(cal_date[0], "%Y%m%d").month
@@ -754,10 +902,10 @@ def capital_manage(request):
     return render(request, 'capital_management/management.html', locals())
 
 
-def evaluate(request):
+def investor(request):
     """股票基本面评价
-        1、获取RPS：股票强度指标大于87%以上。通过通达信软件获取。
-        2、获取行业RPS：行业强度位于前6位。参考值：>= 90
+        1、获取rps：股票强度指标大于87%以上。通过通达信软件获取。
+        2、获取行业rps：行业强度位于前6位。参考值：>= 90
         3、通过tushare接口fina_indicator获得数据，写入EvaluateStocks表中。股票代码为通达信导入。
         4、计算eps: 最近三个年度增长率25%以上，下一年度25%以上的预测值；最近三个季度的增长率有大幅上涨，25%-30%以上为佳。
         5、计算sales：or_yoy 最近三个季度营业收入增速趋势，或者上一季度的增长率25%以上。TODO：错误
@@ -767,7 +915,7 @@ def evaluate(request):
         9、监控量比变化：当日成交量显著地放大50%以上。
         10、计算沪深港通交易占比。tushare接口：k_hold。
         11、计算股票综合排名。便于及时浏览关注。
-            以上指标分配不同的权重，然后进行排名。对排名靠前的股票进行四项指标独立研究：EPS、ROE、SMR和吸筹/出货，同时发现量比变化。
+            以上指标分配不同的权重，然后进行排名。对排名靠前的股票进行四项指标独立研究：eps、ROE、smr和吸筹/出货，同时发现量比变化。
         12、大盘处于上升趋势。
     """
     if EvaluateStocks.objects.exists():
@@ -853,20 +1001,20 @@ def evaluate(request):
     return render(request, 'capital_management/evaluate.html', locals())
 
 
-def investor(request):
+def evaluate(request):
     """日监控指标体系 2020-04-04
         目标：动态可量化地评估监控股票的表现。接口名称fina_indicator。
-        方法：建立评估指标体系：EPS、RPS、SMR、量比变化追踪、主力吸筹/派发（待研究）、ROE、行业强度（待研究）、52周最高价股价下降幅度
-        1、RPS计算思路：
+        方法：建立评估指标体系：eps、rps、smr、量比变化追踪、主力吸筹/派发（待研究）、ROE、行业强度（待研究）、52周最高价股价下降幅度
+        1、rps计算思路：
         （当日收盘价-前250日收盘价）/前250日收盘价，即250日股价涨跌幅度，然后全市场来按照涨跌幅度来计算排名（1-99）。
-        2、SMR计算思路：
+        2、smr计算思路：
         4部分：Sales growth rate over the last three quarters（季度销售同比增长率）; After-tax profit margins(季度税后净利率);
         Pre-tax profit margins（年报税前毛利率）; Return on equity(ROE).
         其中：Sales growth rate和 after-tax margins使用季报数据，ROE和pre-tax margins使用年报数据。
         计算结果按照数值大小进行档次排名：A B C D E五档。每档占比20%。数值不全的，计算结果输出N/A。
         对应tushare接口：分别是q_sales_yoy(季度销售同比增长率)、dt_netprofit_yoy（季度扣非税后净利率）、grossprofit_margin（毛利率）
         和roe。
-        3、EPS计算思路：
+        3、eps计算思路：
         @1评估过去3年间年度收益增长的稳定性和一致性：将过去3-5年中的季度收益点标出，然后用一条上涨趋势线连接，用以明确该股票偏离基本上涨趋势的程度。
         即基本每股收益增长率非常稳定，相互之间的差值非常小。basic_eps_yoy之间差值变化很小，求其标准差。pandas.std()
         @2至少连续8个季度的收益为正，否则输出结果为N/A。
@@ -875,38 +1023,12 @@ def investor(request):
         4、量比变化追踪计算思路：Volume Percent Change. 求MA10日股票交易数值，计算（当日股票交易数值-MA10值）/MA10值。
         5、52周最高价股价下降幅度。计算（52周股价最高价-当日收盘价）/52周最高价
         6、综合排名计算思路：
-        EPS和RPS对股价的表现影响最大，所以赋予2倍权重，SMR、行业组相对强度和吸筹/出货百分比赋予单倍权重。按照数值大小进行排名（1-99）。
-        综合值 = EPS*2 + RPS*2 + SMR + 量比变化 - 52周股价下降幅度。缺少行业强度、主力吸筹/派发2个值。
+        eps和rps对股价的表现影响最大，所以赋予2倍权重，smr、行业组相对强度和吸筹/出货百分比赋予单倍权重。按照数值大小进行排名（1-99）。
+        综合值 = eps*2 + rps*2 + smr + 量比变化 - 52周股价下降幅度。缺少行业强度、主力吸筹/派发2个值。
     """
-    # RPS强度计算
-    # 1、获取交易日期,取最新的交易日，推算出前250日的日期。
-    end_date = datetime.date.today()
-    start_date = end_date - datetime.timedelta(weeks=60)
-    trade_date = pro.query('trade_cal', start_date=start_date.strftime("%Y%m%d"), end_date=end_date.strftime("%Y%m%d"),
-                           is_open=1, fields=['cal_date'])
-    daily_end_date = trade_date.tail(2)['cal_date'].values[0]
-    daily_start_date = trade_date.tail(250)['cal_date'].values[0]
-    # 2、分别获得最新日的交易数据收盘价，和250日前交易日期收盘价
-    df1 = pro.daily(trade_date=daily_start_date, fields=['ts_code', 'close'])
-    df2 = pro.daily(trade_date=daily_end_date, fields=['ts_code', 'close'])
-    data1 = pd.merge(df1, df2, on='ts_code')
-    data1.sort_values(by='ts_code', ascending=True, inplace=True)
-    data1.reset_index(drop=True, inplace=True)
-    # 3、计算涨跌幅度。进行排名。
-    data1['RPS'] = data1.apply(lambda x: round((x['close_y'] - x['close_x']) / x['close_x'], 2), axis=1).rank(
-        ascending=True)
-    x = data1['ts_code'].count()
-    data1['RPS'] = round(100 * data1['RPS'] / x, 1)
-    data1.to_csv('/Users/flowerhost/securityproject/data/RPS20200407.csv')
-    data1 = pd.read_csv('/Users/flowerhost/securityproject/data/SMR.csv')
-    data2 = pd.read_csv('/Users/flowerhost/securityproject/data/RPS20200407.csv')
-    data2 = data2[['ts_code', 'RPS']]
-    data_join = pd.merge(data1, data2, on='ts_code')
-    data_join['TOTAL'] = data_join.apply(lambda x: round(x['EPS'] * 2 + x['RPS'] * 2 + x['SMR'], 2), axis=1).rank(
-        ascending=True)
-    x = data_join['ts_code'].count()
-    data_join['TOTAL'] = round(100 * data_join['TOTAL'] / x, 1)
-    data_join.reset_index(drop=True, inplace=True)
-    data_join.drop(['Unnamed: 0'], axis=1, inplace=True)
+    # 页面展示
+    cumulative_ranks = CumulativeRank.objects.values(
+        'code', 'eps', 'eps_stability', 'smr', 'period_date', 'rps', 'cumulative_rank', 'decline_range', 'volume_ratio',
+        'ann_date', 'new_quarter_eps').order_by('-cumulative_rank')
 
-    data_join.to_csv('/Users/flowerhost/securityproject/data/RPS_SMR.csv')
+    return render(request, 'capital_management/evaluate.html', locals())
