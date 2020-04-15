@@ -55,6 +55,8 @@
                         <th>收益稳定性</th>
                         <th>52周高点降幅(%)</th>
                         <th>成交量比</th>
+                        <th>行业板块</th>
+                        <th>行业强度(RPS)</th>
                         <th>公告日期</th>
                         <th>最新报告期</th>
                     </tr>
@@ -128,6 +130,18 @@
                             {% else %}
                                 <td class="text-blue bg-danger">{{ cumulation.volume_ratio }}</td>
                             {% endif %}
+                        {% endif %}
+
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.industry_name }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.industry_name }}</td>
+                        {% endif %}
+
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.industry_rps }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.industry_rps }}</td>
                         {% endif %}
 
                         {% if cumulation.eps_stability < 30 %}

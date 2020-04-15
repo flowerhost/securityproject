@@ -402,6 +402,8 @@ class CumulativeRank(models.Model):
     eps_stability = models.FloatField(verbose_name='收益稳定性')
     decline_range = models.FloatField(verbose_name='250日降幅')
     volume_ratio = models.FloatField(verbose_name='成交量比')
+    industry_name = models.CharField(max_length=20, verbose_name='行业板块')
+    industry_rps = models.FloatField(verbose_name='行业强度RPS')
     period_date = models.DateField(verbose_name='最新报告期')
     ann_date = models.DateField(verbose_name='公告日期')
 

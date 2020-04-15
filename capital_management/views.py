@@ -686,6 +686,7 @@ def balance(request):
         daily_end_date = trade_date.tail(2)['cal_date'].values[0]
 
     daily_start_date = trade_date.tail(250)['cal_date'].values[0]
+    industry_start_date = trade_date.tail(20)['cal_date'].values[0]
 
     # 10、获得最新日的交易数据收盘价和成交量比.
     df_volume_ratio = pro.daily_basic(
@@ -693,6 +694,29 @@ def balance(request):
     df_history = pro.daily(trade_date=daily_start_date, fields=['ts_code', 'close'])
     df_current = pro.daily(trade_date=daily_end_date, fields=['ts_code', 'close'])
     data_rps = pd.merge(df_history, df_current, on='ts_code')
+
+    # 获取行业板块L3指数行情,计算行业RPS排名。
+    l3_current = pro.sw_daily(trade_date=daily_end_date)
+    l3_history = pro.sw_daily(trade_date=industry_start_date)
+    l3_rps = pd.merge(l3_history, l3_current, on='ts_code')
+    l3_rps = l3_rps.tail(227)
+    l3_rps['index_code'] = l3_rps['ts_code']
+    member_count = l3_rps['index_code'].count()
+    l3_rps['industry_rps'] = l3_rps.apply(lambda x: round((x['close_y']-x['close_x'])/x['close_x'], 2), axis=1).rank(
+        ascending=True)
+    l3_rps['industry_rps'] = round(100 * l3_rps['industry_rps']/member_count, 1)
+    l3_rps['industry_name'] = l3_rps['name_x']
+    l3_rps = l3_rps[['index_code', 'industry_rps', 'industry_name']]
+
+    # 个股与行业指数L3相关联
+    industry_member = pd.DataFrame()
+    l3 = pro.index_classify(level='L3', src='SW')
+    for l_code in l3['index_code']:
+        index_member = pro.index_member(index_code=l_code)
+        industry_member = industry_member.append(index_member, ignore_index=True)
+    industry_member['ts_code'] = industry_member['con_code']
+    industry_member = pd.merge(industry_member, l3_rps, on='index_code')
+    industry_member = industry_member[['ts_code', 'index_code', 'industry_name', 'industry_rps']]
 
     # 11、获取52周最高价
     for query_date in daily_start_date:
@@ -714,7 +738,7 @@ def balance(request):
     data_rps.sort_values(by='ts_code', ascending=True, inplace=True)
     data_rps.reset_index(drop=True, inplace=True)
 
-    # 13、计算涨跌幅度并排名，计算52周最高价与当前价的下降幅度。
+    # 13、计算RPS排名，计算52周最高价与当前价的下降幅度。
     data_rps['rps'] = data_rps.apply(lambda x: round((x['close_y'] - x['close_x']) / x['close_x'], 2), axis=1).rank(
         ascending=True)
     x = data_rps['ts_code'].count()
@@ -725,9 +749,10 @@ def balance(request):
     # 14、数据联合,计算综合排名。
     data_cumulative_rank = pd.merge(eps_smr_stability, data_rps, on='ts_code')
     data_cumulative_rank = pd.merge(data_cumulative_rank, high_data, on='ts_code')
+    data_cumulative_rank = pd.merge(data_cumulative_rank, industry_member, on='ts_code')
     data_cumulative_rank['cumulative_rank'] = data_cumulative_rank.apply(
-        lambda x: round(x['eps'] * 2 + x['rps'] * 2 + x['smr'] + x['decline_range'], 2), axis=1).rank(
-        ascending=True)
+        lambda x: round(x['eps'] * 2 + x['rps'] * 2 + x['smr'] + x['industry_rps'] + x['decline_range'], 2),
+        axis=1).rank(ascending=True)
     x = data_cumulative_rank['ts_code'].count()
     data_cumulative_rank['cumulative_rank'] = round(100 * data_cumulative_rank['cumulative_rank'] / x, 1)
     data_cumulative_rank.reset_index(drop=True, inplace=True)
@@ -738,7 +763,7 @@ def balance(request):
     data_cumulative_rank['code'] = data_cumulative_rank['ts_code']
     data_cumulative_rank = data_cumulative_rank[
         ['code', 'cumulative_rank', 'new_quarter_eps', 'eps', 'rps', 'smr', 'eps_stability', 'decline_range',
-         'volume_ratio', 'period_date', 'ann_date']]
+         'volume_ratio', 'industry_name', 'industry_rps', 'period_date', 'ann_date']]
 
     # 15、写数据库
     con = sqlite3.connect('/Users/flowerhost/securityproject/db.sqlite3')
@@ -1029,6 +1054,6 @@ def evaluate(request):
     # 页面展示
     cumulative_ranks = CumulativeRank.objects.values(
         'code', 'eps', 'eps_stability', 'smr', 'period_date', 'rps', 'cumulative_rank', 'decline_range', 'volume_ratio',
-        'ann_date', 'new_quarter_eps').order_by('-cumulative_rank')
+        'ann_date', 'new_quarter_eps', 'industry_name', 'industry_rps').order_by('-cumulative_rank')
 
     return render(request, 'capital_management/evaluate.html', locals())

@@ -170,9 +170,25 @@ pro = ts.pro_api()
 # data1.reset_index(drop=True, inplace=True)
 
 """申万行业指数"""
-# data = pro.sw_daily(ts_code='851911.SI')
-# l1 = pro.index_classify(level='L3', src='SW')
-# print(l1)
+index_l3 = pro.sw_daily(trade_date='20200414')
+index_l3 = index_l3.tail(227)
+index_l3.to_csv('/Users/flowerhost/securityproject/data/index_l3.csv')
+member_count = index_l3.count()
+print(member_count)
+# l3 = pro.index_classify(level='L3', src='SW')
+# data = pd.DataFrame()
+# for l_code in l3['index_code']:
+#     print(l_code)
+#     index_member = pro.index_member(index_code=l_code)
+#     data = data.append(index_member, ignore_index=True)
+# #     data.to_csv('/Users/flowerhost/securityproject/data/index_member.csv')
+# data['ts_code'] = data['index_code']
+#
+# merge_join = pd.merge(data, index_l3, on='ts_code')
+# print(merge_join)
+# merge_join.to_csv('/Users/flowerhost/securityproject/data/merge_join.csv')
 
-df = ts.pro_bar(ts_code='603596.SH', start_date='2020101', end_date='20200414', ma=[5, 20, 50])
-print(df)
+# l2.to_csv('/Users/flowerhost/securityproject/data/l2.csv')
+# l3.to_csv('/Users/flowerhost/securityproject/data/l3.csv')
+# index_member = pro.index_member(index_code='851911.SI')
+# print(index_member)
