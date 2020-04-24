@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}行业板块强度监控{% endblock %}
+
+{% block css %}
+     <link rel="stylesheet" href="{% static 'AdminLTE-2.4.10/bower_components/datatables.net-bs/css/dataTables.bootstrap.min.css' %}">
+{% endblock %}
+
+{% block breadcrumb %}
+<!-- Content Header (Page header) -->
+    <section class="content-header">
+      <h1>
+        行业板块强度
+        <small></small>
+      </h1>
+      <ol class="breadcrumb">
+        <li><a href="#"><i class="fa fa-dashboard"></i> 主页</a></li>
+        <li class="active">行业板块强度</li>
+      </ol>
+    </section>
+    <!--  删除线 -->
+    <style>
+        .line_through{
+          text-decoration:line-through;
+            color: blue;
+      }
+    </style>
+    <!-- end 删除线 -->
+{% endblock %}
+
+{% block content %}
+
+   <!-- Main content -->
+    <section class="content">
+      <div class="row">
+        <div class="col-xs-12">
+
+        <div class="box">
+        <div class="box-header">
+         <h3 class="box-title">行业板块强度<small></small></h3>
+        </div>
+        <!-- /.box-header -->
+        <div class="box-body">
+
+            <table id="monitor" class=" table table-bordered table-striped ">
+                <thead class="text-center text-muted bg-danger">
+                    <tr>
+                        <th>序号</th>
+                        <th>本周强度</th>
+                        <th>3周强度</th>
+                        <th>6周强度</th>
+                        <th>7个月强度</th>
+                        <th>行业名称</th>
+                        <th>日期</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                  {% for industry in industry_ranks %}
+                  <tr>
+
+                            <td class="text-red bg-success">{{ forloop.counter }}</td>
+
+                            <td class="text-red bg-success">{{ industry.industry_week_rank }}</td>
+
+                            <td class="text-red bg-success">{{ industry.industry_3_rank }}</td>
+
+                            <td class="text-red bg-success">{{ industry.industry_6_rank }}</td>
+
+                            <td class="text-red bg-success">{{ industry.industry_7_rank }}</td>
+
+                            <td class="text-red bg-success">{{ industry.industry_name }}</td>
+
+                            <td class="text-red bg-success">{{ industry.date }}</td>
+
+                  </tr>
+                  {% empty %}
+                    <tr>没有数据！</tr>
+                  {% endfor %}
+
+
+                </tbody>
+                <tfoot>
+
+                </tfoot>
+            </table>
+        </div>
+        <!-- /.box-body -->
+      </div>
+      <!-- /.box -->
+        </div>
+    <!-- /.col -->
+      </div>
+    <!-- /.row -->
+    </section>
+
+{% endblock %}
+
+{% block script %}
+
+<!-- DataTables -->
+<script src="{% static 'AdminLTE-2.4.10/bower_components/datatables.net/js/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'AdminLTE-2.4.10/bower_components/datatables.net-bs/js/dataTables.bootstrap.min.js' %}"></script>
+<!-- page script -->
+<script>
+    $(function () {
+        $('#monitor').DataTable({
+             "paging"      : true,       <!-- 允许分页 -->
+             "lengthChange": true,       <!-- 允许改变每页显示的行数 -->
+             "searching"   : true,       <!-- 允许内容搜索 -->
+             "ordering"    : true,       <!-- 允许排序 -->
+             "info"        : true,       <!-- 显示信息 -->
+             "autoWidth"   : true,       <!-- 固定宽度 -->
+
+
+
+             "pagingType"  : "full_numbers",  <!-- 显示尾页和首页 -->
+
+              "language": {
+                        //"info": "当前第_PAGE_页，共 _PAGES_页",
+                        "sInfo": "当前显示第 _START_ 到第 _END_ 条，共 _TOTAL_ 条",
+                        "sInfoFiltered": "(从_MAX_条筛选 )",
+                        "sInfoEmpty": "共筛选到0条",
+                        "sSearch": "搜索:",
+                        "sLengthMenu": "每页显示 _MENU_ 条",
+                        "sZeroRecords": "未筛选到相关内容",
+                        "paginate": {
+                            "sFirst": "首页",  //首页和尾页必须在pagingType设为full_numbers时才可以
+                            "sLast": "尾页",
+                            "sPrevious": "上一页",
+                            "sNext": "下一页",
+                            "first": "First page",
+                            "last": "Last page",
+                            "next": "Next page",
+                            "previous": "Previous page"
+                        }
+
+              }
+        });
+        $('#evaluate').colResizable({
+            liveDrag: true, //实现实时拖动，可看见拖动轨迹
+            draggingClass: "dragging", //防止拖动出现虚标线
+            resizeMode: 'flex',
+        });
+    });
+
+</script>
+
+{% endblock %}

@@ -391,7 +391,7 @@ class RelativePriceStrength(models.Model):
 
 
 class CumulativeRank(models.Model):
-    """全市场综合排名"""
+    """个股全市场综合排名"""
     code = models.CharField(max_length=10, verbose_name='股票代码')
 
     cumulative_rank = models.FloatField(verbose_name='综合排名')
@@ -402,6 +402,7 @@ class CumulativeRank(models.Model):
     eps_stability = models.FloatField(verbose_name='收益稳定性')
     decline_range = models.FloatField(verbose_name='250日降幅')
     volume_ratio = models.FloatField(verbose_name='成交量比')
+    index_code = models.CharField(max_length=20, verbose_name='行业代码')
     industry_name = models.CharField(max_length=20, verbose_name='行业板块')
     industry_rps = models.FloatField(verbose_name='行业强度RPS')
     period_date = models.DateField(verbose_name='最新报告期')
@@ -411,3 +412,29 @@ class CumulativeRank(models.Model):
         verbose_name = '全市场综合排名'
         get_latest_by = 'ann_date'
 
+
+class MonitorIndustry(models.Model):
+    """行业强度监控"""
+
+    index_code = models.CharField(max_length=20, verbose_name='行业代码')
+    industry_base_rank = models.FloatField(verbose_name='年度基准排名')
+    industry_base_rps = models.FloatField(verbose_name='年度基准RPS')
+    industry_front_rank = models.FloatField(verbose_name='连续交易日强度排名')
+    industry_front_rps = models.FloatField(verbose_name='连续交易日强度RPS')
+    industry_year_rank = models.FloatField(verbose_name='年度强度排名')
+    industry_year_rps = models.FloatField(verbose_name='年度强度RPS')
+    industry_week_rank = models.FloatField(verbose_name='本周强度排名')
+    industry_3_rank = models.FloatField(verbose_name='3周强度排名')
+    industry_3_rps = models.FloatField(verbose_name='3周强度RPS')
+    industry_name = models.CharField(max_length=80, verbose_name='行业名称')
+    industry_6_rank = models.FloatField(verbose_name='6周强度排名')
+    industry_6_rps = models.FloatField(verbose_name='6周强度RPS')
+    industry_7_rank = models.FloatField(verbose_name='7个月强度排名')
+    industry_7_rps = models.FloatField(verbose_name='7个月强度RPS')
+
+    date = models.DateField(verbose_name='更新日期', default=timezone.now())
+
+    class Meta:
+
+        verbose_name = '行业强度监控'
+        get_latest_by = 'date'

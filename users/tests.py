@@ -170,11 +170,11 @@ pro = ts.pro_api()
 # data1.reset_index(drop=True, inplace=True)
 
 """申万行业指数"""
-index_l3 = pro.sw_daily(trade_date='20200414')
-index_l3 = index_l3.tail(227)
-index_l3.to_csv('/Users/flowerhost/securityproject/data/index_l3.csv')
-member_count = index_l3.count()
-print(member_count)
+# index_l3 = pro.sw_daily(trade_date='20200414')
+# index_l3 = index_l3.tail(227)
+# index_l3.to_csv('/Users/flowerhost/securityproject/data/index_l3.csv')
+# member_count = index_l3.count()
+# print(member_count)
 # l3 = pro.index_classify(level='L3', src='SW')
 # data = pd.DataFrame()
 # for l_code in l3['index_code']:
@@ -192,3 +192,16 @@ print(member_count)
 # l3.to_csv('/Users/flowerhost/securityproject/data/l3.csv')
 # index_member = pro.index_member(index_code='851911.SI')
 # print(index_member)
+# d = datetime.date.today()
+# y = str(d.year - 1)
+# week_day = d - datetime.timedelta(days=d.weekday())
+# trade_date = pro.query('trade_cal', start_date='20200413',
+#                            end_date="20200416", is_open=1, fields=['cal_date'])
+#
+# new_year_date = trade_date.head(1)['cal_date'].values[0]
+# test = trade_date.tail(140)['cal_date'].values[0]
+# print(str(y))
+end_date = datetime.datetime.today()
+df_volume_ratio = pro.daily_basic(
+        ts_code='', trade_date=end_date.strftime("%Y%m%d"), fields=['ts_code', 'trade_date', 'volume_ratio'])
+print(df_volume_ratio)

@@ -27,4 +27,6 @@ urlpatterns = [
     path('capital_management/', views.capital_manage, name='capital_management'),
     # 基本面评价
     path('evaluate/', views.evaluate, name='evaluate'),
+    # 行业强度监控
+    path('monitor/', views.monitor, name='monitor'),
 ]
