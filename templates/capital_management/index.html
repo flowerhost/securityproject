@@ -48,7 +48,8 @@
                         <th>交易总额</th>
                         <th>当日收盘价</th>
                         <th>十日均线</th>
-                        <th>操作分值</th>
+                        <th>买卖评分</th>
+                        <th>交易评分</th>
                         <th>交易账户</th>
                     </tr>
                 </thead>
@@ -163,6 +164,15 @@
                         <td class="text-blue bg-gray-light">{{ stock.tradeperformance__performance }}</td>
                     {% else %}
                         <td class="text-blue bg-warning">{{ stock.tradeperformance__performance }}</td>
+                    {% endif %}
+                    {% if stock.flag == 'B' %}
+                        <td class="text-red bg-success">{{ stock.tradeperformance__trade_performance }}</td>
+                    {% elif stock.flag == 'S' %}
+                        <td class="text-green bg-danger">{{ stock.tradeperformance__trade_performance }}</td>
+                    {% elif stock.flag == 'R' %}
+                        <td class="text-blue bg-gray-light">{{ stock.tradeperformance__trade_performance }}</td>
+                    {% else %}
+                        <td class="text-blue bg-warning">{{ stock.tradeperformance__trade_performance }}</td>
                     {% endif %}
                     {% if stock.flag == 'B' %}
                         <td class="text-red bg-success">{{ stock.account__name }}</td>

@@ -59,6 +59,7 @@
                         <th>股票名称</th>
                         <th>止损点</th>
                         <th>成本价</th>
+                        <th>通道上轨</th>
                         <th>收盘价</th>
                         <th>浮盈亏(%)</th>
                         <th>持仓股数</th>
@@ -98,6 +99,7 @@
                       {% else %}
                         <td class="text-blue bg-danger">{{ management.stop_loss }}</td>
                       {% endif %}
+
                       {% if management.buy < management.stop_loss %}
                           {% if management.stock_close < management.stop_loss %}
                                 <td class="text-yellow line_through bg-danger">{{ management.buy }}</td>
@@ -110,6 +112,11 @@
                           {% else %}
                                 <td class="text-blue bg-danger">{{ management.buy }}</td>
                           {% endif %}
+                      {% endif %}
+                      {% if management.buy < management.stop_loss %}
+                        <td class="text-red bg-success">{{ management.boll_up }}</td>
+                      {% else %}
+                        <td class="text-blue bg-danger">{{ management.boll_up }}</td>
                       {% endif %}
                       {% if management.buy < management.stop_loss %}
                         <td class="text-red bg-success">{{ management.stock_close }}</td>

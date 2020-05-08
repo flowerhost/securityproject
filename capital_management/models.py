@@ -302,6 +302,7 @@ class CapitalManagement(models.Model):
     gain_loss = models.FloatField(verbose_name='盈亏比')
     positions = models.FloatField(verbose_name='持仓股数')
     max_volume = models.FloatField(verbose_name='可买股数')
+    boll_up = models.FloatField(verbose_name='通道上限')
 
     date = models.DateField(verbose_name='建仓日期')
 

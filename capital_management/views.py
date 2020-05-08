@@ -23,7 +23,7 @@ def index(request):
     stocks = TradeLists.objects.values(
         'code', 'name', 'price', 'flag', 'date', 'trade_resource', 'quantity', 'total_capital',
         'account__name', 'tradeperformance__close', 'tradeperformance__moving_average',
-        'tradeperformance__performance', ).order_by('-date')
+        'tradeperformance__performance', 'tradeperformance__trade_performance').order_by('-date')
 
     return render(request, 'capital_management/index.html', locals())
 
@@ -336,7 +336,7 @@ def balance(request):
 
     """判断提取数据时间"""
     # 如果是16:15之前，提取前一交易日数据
-    check_time = datetime.datetime.strptime(str(datetime.date.today()) + '16:30', '%Y-%m-%d%H:%M')
+    check_time = datetime.datetime.strptime(str(datetime.date.today()) + '16:15', '%Y-%m-%d%H:%M')
     now_time = datetime.datetime.now()
     if now_time < check_time:
         statistic_date = datetime.date.today() - datetime.timedelta(days=1)
@@ -533,7 +533,7 @@ def balance(request):
 
     """Performance交易表现评价"""
     # 如果是16：15之前，禁止提取数据。
-    check_time = datetime.datetime.strptime(str(datetime.date.today()) + '16:15', '%Y-%m-%d%H:%M')
+    check_time = datetime.datetime.strptime(str(datetime.date.today()) + '9:00', '%Y-%m-%d%H:%M')
     now_time = datetime.datetime.now()
     if now_time < check_time:
         pass
@@ -577,7 +577,7 @@ def balance(request):
                     else:
                         p_flag = False
 
-                    for _ in range(10):
+                    for _ in range(3):
                         # 获得股票收盘数据
                         try:
                             query_result = ts.pro_bar(ts_code=performance_code, adj='qfg', ma=[10],
@@ -586,17 +586,25 @@ def balance(request):
                         except:
                             time.sleep(1)
                         else:
+                            print(query_result)
                             close = query_result['close'][0]
                             high_price = query_result['high'].values[0]
                             low_price = query_result['low'].values[0]
-                            moving_average = query_result['ma10'].values[0]
-                            boll_up = round(moving_average * 1.08, 2)
-                            boll_down = round(moving_average * 0.92, )
+                            moving_average = round(query_result['ma10'].values[0], 2)
+                            boll_up = round(moving_average * 1.09, 2)
+                            boll_down = round(moving_average * 0.91, 2)
 
                             performance = round((performance_price - low_price) / (high_price - low_price), 2)
                             # 换算买入表现分值，使得其意义与卖入表现分值所代表的意义一致，分值越高，其表现越好。
                             if p_flag:
                                 performance = round((1 - performance), 2)
+                                trade_performance = 0
+                            else:
+                                trade_price = TradeLists.objects.filter(
+                                    code=performance_code, flag='B', date__lt=performance_score_date).values(
+                                    'price', 'tradeperformance__boo_down').latest()
+                                trade_performance = round((performance_price - trade_price['price']) /
+                                                          (boll_up - trade_price['tradeperformance__boo_down']), 2)
 
                     if not TradePerformance.objects.exists():
                         TradePerformance.objects.create(id=performance_id_cursor, close=close,
@@ -604,7 +612,8 @@ def balance(request):
                                                         high_price=high_price, low_price=low_price, boll_up=boll_up,
                                                         boo_down=boll_down, performance=performance,
                                                         trade_id=performance_trade_id,
-                                                        trade_performance=trade_performance, date=performance_score_date)
+                                                        trade_performance=trade_performance,
+                                                        date=performance_score_date)
                     else:
                         flag = TradePerformance.objects.filter(trade_id=performance_trade_id)
                         if flag:
@@ -700,7 +709,7 @@ def balance(request):
     # 9、获取交易日期,取最新的交易日，推算出前250日的日期。
     end_date = datetime.date.today()
     year = str(end_date.year)  # 本年
-    last_year = str(end_date.year-1)
+    last_year = str(end_date.year - 1)
     week_first_day = end_date - datetime.timedelta(days=end_date.weekday())  # 本周第一天
     start_date = end_date - datetime.timedelta(weeks=60)
     trade_date = pro.query('trade_cal', start_date=start_date.strftime("%Y%m%d"),
@@ -765,16 +774,17 @@ def balance(request):
     l3_3_weeks = pro.sw_daily(trade_date=industry_3_weeks)
     l3_6_weeks = pro.sw_daily(trade_date=industry_6_weeks)
     l3_7_months = pro.sw_daily(trade_date=industry_7_months)
-    print(week_first_date, daily_end_date, last_year_date,new_year_date,front_date, industry_3_weeks,industry_6_weeks)
+    print(week_first_date, daily_end_date, last_year_date, new_year_date, front_date, industry_3_weeks,
+          industry_6_weeks)
 
     # 20日板块强度
     l3_rps = pd.merge(l3_20_days, l3_current, on='ts_code')
     l3_rps = l3_rps.tail(227)
     l3_rps['index_code'] = l3_rps['ts_code']
     member_count = l3_rps['index_code'].count()
-    l3_rps['industry_rps'] = l3_rps.apply(lambda m: (m['close_y']-m['close_x'])/m['close_x'],
+    l3_rps['industry_rps'] = l3_rps.apply(lambda m: (m['close_y'] - m['close_x']) / m['close_x'],
                                           axis=1).rank(ascending=True)
-    l3_rps['industry_rps'] = round(100 * l3_rps['industry_rps']/member_count, 1)
+    l3_rps['industry_rps'] = round(100 * l3_rps['industry_rps'] / member_count, 1)
     l3_rps['industry_name'] = l3_rps['name_x']
     l3_rps = l3_rps[['index_code', 'industry_rps', 'industry_name']]
 
@@ -819,9 +829,9 @@ def balance(request):
     l3_3_weeks_rps = pd.merge(l3_3_weeks, l3_current, on='ts_code')
     l3_3_weeks_rps = l3_3_weeks_rps.tail(227)
     l3_3_weeks_rps['index_code'] = l3_3_weeks_rps['ts_code']
-    l3_3_weeks_rps['industry_3_rps'] = l3_3_weeks_rps.apply(lambda m: (m['close_y']-m['close_x'])/m['close_x'],
+    l3_3_weeks_rps['industry_3_rps'] = l3_3_weeks_rps.apply(lambda m: (m['close_y'] - m['close_x']) / m['close_x'],
                                                             axis=1).rank(ascending=True)
-    l3_3_weeks_rps['industry_3_rank'] = round(100*l3_3_weeks_rps['industry_3_rps']/member_count, 1)
+    l3_3_weeks_rps['industry_3_rank'] = round(100 * l3_3_weeks_rps['industry_3_rps'] / member_count, 1)
     l3_3_weeks_rps['industry_name'] = l3_3_weeks_rps['name_x']
     l3_3_weeks_rps = l3_3_weeks_rps[['index_code', 'industry_3_rank', 'industry_3_rps', 'industry_name']]
 
@@ -953,7 +963,7 @@ def balance(request):
 def evaluate(request):
     """全市场综合排名"""
     # 页面展示
-    cumulative_ranks = CumulativeRank.objects.filter().values(
+    cumulative_ranks = CumulativeRank.objects.filter(eps_stability__lt=35, cumulative_rank__gt=79, new_quarter_eps__gt=40, eps__gt=79).values(
         'code', 'eps', 'eps_stability', 'smr', 'period_date', 'rps', 'cumulative_rank', 'decline_range', 'volume_ratio',
         'ann_date', 'new_quarter_eps', 'industry_name', 'industry_rps').order_by('-cumulative_rank')
 
@@ -1048,9 +1058,9 @@ def capital_manage(request):
 
             stock_close = stop_loss_data[-1][2]
             if buy > 0:
-                gain_loss_rate = round(100*(stock_close - buy) / buy, 2)
+                gain_loss_rate = round(100 * (stock_close - buy) / buy, 2)
             else:
-                gain_loss_rate = round(-100*(stock_close - buy)/buy, 2)
+                gain_loss_rate = round(-100 * (stock_close - buy) / buy, 2)
             # 获取月初资产*6%
             assets = AccountSurplus.objects.get(date=date_cursor).total_assets
             current_month = datetime.datetime.strptime(cal_date[0], "%Y%m%d").month
@@ -1064,6 +1074,7 @@ def capital_manage(request):
             # 最多3个交易标的。每个交易标的不得超过capital_2，总风险敞口不超过capital_6
             risk_2 = round(assets * 0.02, -2)
             risk_6 = round(assets * 0.06, -2)
+            boll_up = round(ma10*1.09, 2)
 
             if buy > stop_loss:
                 max_volume = round(risk_2 / (buy - stop_loss) - stock_amount, -2)
@@ -1084,7 +1095,7 @@ def capital_manage(request):
                     management_id_cursor = management_id_cursor + 1
                     CapitalManagement.objects.create(id=management_id_cursor, risk_6=risk_6, stock_name=stock_name,
                                                      stop_loss=stop_loss, positions=stock_amount,
-                                                     stock_close=stock_close,
+                                                     stock_close=stock_close, boll_up=boll_up,
                                                      max_volume=max_volume, buy=buy, gain_loss=gain_loss_rate,
                                                      date=date_cursor, month_risk_6=current_month_risk)
             else:
@@ -1093,12 +1104,12 @@ def capital_manage(request):
                 CapitalManagement.objects.create(id=management_id_cursor, risk_6=risk_6, stock_name=stock_name,
                                                  stop_loss=stop_loss, positions=stock_amount, stock_close=stock_close,
                                                  max_volume=max_volume, buy=buy, gain_loss=gain_loss_rate,
-                                                 date=date_cursor, month_risk_6=current_month_risk)
+                                                 date=date_cursor, month_risk_6=current_month_risk, boll_up=boll_up)
             # 网页端展示数据准备
             query_date = CapitalManagement.objects.latest().date
             capital_management = CapitalManagement.objects.filter(date=query_date).values(
                 'month_risk_6', 'risk_6', 'stock_name', 'stop_loss', 'stock_close', 'buy', 'gain_loss', 'positions',
-                'max_volume', 'date')
+                'max_volume', 'date', 'boll_up')
             # 剩余敞口资金数
             current_risk_measurement = round(risk_6 - current_month_risk, -2)
             if current_risk_measurement > 0:
@@ -1129,5 +1140,3 @@ def monitor(request):
         'industry_name', 'industry_week_rank', 'industry_3_rank', 'industry_6_rank', 'industry_7_rank',
         'date').order_by('-industry_week_rank')
     return render(request, 'capital_management/monitor.html', locals())
-
-

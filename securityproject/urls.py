@@ -15,6 +15,9 @@ Including another URL conf
 """
 from django.contrib import admin
 from django.urls import include, path
+# 2020-05-06 新增bolg app
+from django.conf import settings
+from django.conf.urls.static import static
 
 
 urlpatterns = [
@@ -23,4 +26,5 @@ urlpatterns = [
     path('index/', include('capital_management.urls', namespace='capital_management')),
     path('captcha', include('captcha.urls')),  # 登陆界面图形验证功能
     path('select2/', include('select2.urls')),  # 下拉菜单筛选功能
-]
+    path('blog/', include('blog.urls', namespace='blog')),
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

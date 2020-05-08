@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}操作日志{% endblock %}
+
+{% block css %}
+     <link rel="stylesheet" href="{% static 'AdminLTE-2.4.10/bower_components/datatables.net-bs/css/dataTables.bootstrap.min.css' %}">
+{% endblock %}
+
+{% block breadcrumb %}
+<!-- Content Header (Page header) -->
+    <section class="content-header">
+      <h1>
+        操作日志
+        <small></small>
+      </h1>
+      <ol class="breadcrumb">
+        <li><a href="#"><i class="fa fa-dashboard"></i> 主页</a></li>
+        <li class="active">操作日志</li>
+      </ol>
+    </section>
+    <!--  删除线 -->
+    <style>
+        .line_through{
+          text-decoration:line-through;
+            color: blue;
+      }
+    </style>
+    <!-- end 删除线 -->
+{% endblock %}
+
+{% block content %}
+
+   <!-- Main content -->
+    <section class="content">
+      <div class="row">
+        <div class="col-xs-12">
+
+        <div class="box">
+        <div class="box-header">
+         <h3 class="box-title">操作日志<small>(每日功课)</small></h3>
+        </div>
+        <!-- /.box-header -->
+        <div class="box-body">
+
+        {% if page_obj %}
+
+            <table id="blog" class=" table table-bordered table-striped ">
+                <thead class="text-center text-muted bg-danger">
+                    <tr>
+                        <th>序号</th>
+                        <th>标题</th>
+                        <th>类别</th>
+                        <th>发布日期</th>
+                        <th>查看</th>
+                        <th>修改</th>
+                        <th>删除</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                  {% for article in page_obj %}
+                    <tr>
+                        <td>
+                            {{ forloop.counter }}
+                        </td>
+                        <td>
+                            {{ article.title }}
+                        </td>
+                        <td>
+                            {{ article.category.name }}
+                        </td>
+                        <td>
+                            {{ article.pub_date | date:"Y-m-d" }}
+                        </td>
+                        <td>
+                            <a href="{% url 'blog:article_detail' article.id article.slug%}"><span class="glyphicon glyphicon-eye-open"></span> </a>
+                        </td>
+                        <td>
+                            <a href="{% url 'blog:article_update' article.id article.slug %}"><span class="glyphicon glyphicon-wrench"></span> </a>
+                        </td>
+                        <td>
+                            <a href="{% url 'blog:article_delete' article.id article.slug %}"><span class="glyphicon glyphicon-trash"></span> </a>
+                        </td>
+                  {% endfor %}
+                    </tr>
+
+
+                </tbody>
+                <tfoot>
+
+                </tfoot>
+            </table>
+        {% else %}
+            <p>没有文章</p>
+        {% endif %}
+
+        </div>
+        <!-- /.box-body -->
+      </div>
+      <!-- /.box -->
+        </div>
+    <!-- /.col -->
+      </div>
+    <!-- /.row -->
+    </section>
+
+{% endblock %}
+
+{% block script %}
+
+<!-- DataTables -->
+<script src="{% static 'AdminLTE-2.4.10/bower_components/datatables.net/js/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'AdminLTE-2.4.10/bower_components/datatables.net-bs/js/dataTables.bootstrap.min.js' %}"></script>
+<!-- page script -->
+<script>
+    $(function () {
+        $('#blog').DataTable({
+             "paging"      : true,       <!-- 允许分页 -->
+             "lengthChange": true,       <!-- 允许改变每页显示的行数 -->
+             "searching"   : true,       <!-- 允许内容搜索 -->
+             "ordering"    : true,       <!-- 允许排序 -->
+             "info"        : true,       <!-- 显示信息 -->
+             "autoWidth"   : true,       <!-- 固定宽度 -->
+
+
+
+             "pagingType"  : "full_numbers",  <!-- 显示尾页和首页 -->
+
+              "language": {
+                        //"info": "当前第_PAGE_页，共 _PAGES_页",
+                        "sInfo": "当前显示第 _START_ 到第 _END_ 条，共 _TOTAL_ 条",
+                        "sInfoFiltered": "(从_MAX_条筛选 )",
+                        "sInfoEmpty": "共筛选到0条",
+                        "sSearch": "搜索:",
+                        "sLengthMenu": "每页显示 _MENU_ 条",
+                        "sZeroRecords": "未筛选到相关内容",
+                        "paginate": {
+                            "sFirst": "首页",  //首页和尾页必须在pagingType设为full_numbers时才可以
+                            "sLast": "尾页",
+                            "sPrevious": "上一页",
+                            "sNext": "下一页",
+                            "first": "First page",
+                            "last": "Last page",
+                            "next": "Next page",
+                            "previous": "Previous page"
+                        }
+
+              }
+        });
+        $('#evaluate').colResizable({
+            liveDrag: true, //实现实时拖动，可看见拖动轨迹
+            draggingClass: "dragging", //防止拖动出现虚标线
+            resizeMode: 'flex',
+        });
+    });
+
+</script>
+
+{% endblock %}

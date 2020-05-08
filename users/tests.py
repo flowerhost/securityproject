@@ -50,8 +50,12 @@ pro = ts.pro_api()
 """数据备份"""
 # con = sqlite3.connect('/Users/flowerhost/securityproject/db.sqlite3')
 # c = con.cursor()
-# data = pd.read_csv('/Users/flowerhost/securityproject/data/backup/trade20200407.csv')
-# data.to_sql("capital_management_tradelists", con, if_exists="append", index=False)
+# data1 = pd.read_csv('/Users/flowerhost/securityproject/data/backup/tradelists.csv')
+# data1.to_sql("capital_management_tradelists", con, if_exists="append", index=False)
+# data2 = pd.read_csv('/Users/flowerhost/securityproject/data/backup/broker20200407.csv')
+# data2.to_sql("capital_management_broker", con, if_exists="append", index=False)
+# data3 = pd.read_csv('/Users/flowerhost/securityproject/data/backup/capital2020407.csv')
+# data3.to_sql("capital_management_capitalaccount", con, if_exists="append", index=False)
 # c.execute("select * from capital_management_capitalaccount")
 # result = c.fetchall()
 # print(result)
@@ -201,7 +205,11 @@ pro = ts.pro_api()
 # new_year_date = trade_date.head(1)['cal_date'].values[0]
 # test = trade_date.tail(140)['cal_date'].values[0]
 # print(str(y))
-end_date = datetime.datetime.today()
-df_volume_ratio = pro.daily_basic(
-        ts_code='', trade_date=end_date.strftime("%Y%m%d"), fields=['ts_code', 'trade_date', 'volume_ratio'])
-print(df_volume_ratio)
+# end_date = datetime.datetime.today()
+# df_volume_ratio = pro.daily_basic(
+#         ts_code='', trade_date=end_date.strftime("%Y%m%d"), fields=['ts_code', 'trade_date', 'volume_ratio'])
+# print(df_volume_ratio)
+query_result = ts.pro_bar(ts_code='600115.SH', adj='qfg', ma=[10],
+                                                      start_date='20200101',
+                                                      end_date='20200501')
+print(query_result)

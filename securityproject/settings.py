@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'capital_management.apps.CapitalManagementConfig',
     'users.apps.UsersConfig',
     'captcha',
+    'blog.apps.BlogConfig',
 ]
 
 MIDDLEWARE = [
@@ -129,3 +130,7 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]
+
+# 新加的代码，2020-05-06 富文本编辑用户上传图片。
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = '/media/'
