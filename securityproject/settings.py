@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig',
     'captcha',
     'blog.apps.BlogConfig',
+    'ckeditor',
+    'ckeditor_uploader',
 ]
 
 MIDDLEWARE = [
@@ -125,6 +127,7 @@ USE_TZ = False  # 这里修改过
 # https://docs.djangoproject.com/en/2.1/howto/static-files/
 
 STATIC_URL = '/static/'
+# STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 # 新加的代码
 STATICFILES_DIRS = [
@@ -132,5 +135,33 @@ STATICFILES_DIRS = [
 ]
 
 # 新加的代码，2020-05-06 富文本编辑用户上传图片。
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# 新加代码：CKEDITOR设置
+CKEDITOR_UPLOAD_PATH = 'blog_uploads/'
+CKEDITOR_JQUERY_URL ='AdminLTE-2.4.10/bower_components/bootstrap/dist/jquery.min.js'
+CKEDITOR_IMAGE_BACKEND = 'pillow'
+CKEDITOR_ALLOW_NONIMAGE_FILES = False
+CKEDITOR_BROWSE_SHOW_DIRS = True
+CKEDITOR_RESTRICT_BY_USER = True
+CKEDITOR_RESTRICT_BY_DATE = True
+
+
+CKEDITOR_CONFIGS = {
+    'default': {
+        'toolbar': (['Source', '-',  'Preview', '-', ],
+                    ['Cut', 'Copy', 'Paste', 'PasteText', 'PasteFromWord', '-', 'Print', 'SpellChecker', ],
+                    ['Undo', 'Redo', '-', 'Find', 'Replace', '-', 'SelectAll', 'RemoveFormat', '-',
+                     "CodeSnippet", 'Subscript', 'Superscript'],
+                    ['NumberedList', 'BulletedList', '-', 'Blockquote'],
+                    ['Link', 'Unlink', ],
+                    ['Image', 'Table', 'HorizontalRule', 'Smiley', 'SpecialChar', ],
+                    ['Format', 'Font', 'FontSize', 'TextColor', 'BGColor', ],
+                    ['Bold', 'Italic', 'Underline', 'Strike', ],
+                    ['JustifyLeft', 'JustifyCenter', 'JustifyRight', 'JustifyBlock'],
+                    ),
+        'extraPlugins': 'codesnippet',
+        'width': 'auto',
+    }
+}

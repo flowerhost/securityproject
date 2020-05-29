@@ -409,6 +409,9 @@ class CumulativeRank(models.Model):
     period_date = models.DateField(verbose_name='最新报告期')
     ann_date = models.DateField(verbose_name='公告日期')
 
+    hk_hold = models.FloatField(verbose_name='港股通持仓比')
+    pct_chg = models.FloatField(verbose_name='当日涨幅')
+
     class Meta:
         verbose_name = '全市场综合排名'
         get_latest_by = 'ann_date'
@@ -434,6 +437,9 @@ class MonitorIndustry(models.Model):
     industry_7_rps = models.FloatField(verbose_name='7个月强度RPS')
 
     date = models.DateField(verbose_name='更新日期', default=timezone.now())
+
+    new_high_flag = models.FloatField(verbose_name='新高数量')
+    percent_7_rise = models.FloatField(verbose_name='涨幅超过7%')
 
     class Meta:
 

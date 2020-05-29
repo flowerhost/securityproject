@@ -10,12 +10,12 @@
 <!-- Content Header (Page header) -->
     <section class="content-header">
       <h1>
-        日志详情
+        笔记
         <small>详情</small>
       </h1>
       <ol class="breadcrumb">
         <li><a href="#"><i class="fa fa-dashboard"></i> 主页</a></li>
-        <li class="active">日志详情</li>
+        <li class="active">笔记详情</li>
       </ol>
     </section>
 {% endblock %}
@@ -36,16 +36,16 @@
             </p>
         </div>
         <div class="box-body">
-            <h3 class="box-title">
+            <h3 class="box-title text-blue">
                 {{ article.title }}
                 {% if article.status == "d" %}
                     (草稿)
                 {% endif %}
             </h3>
             {% if article.status == "p" %}
-                <p>发布于{{ article.pub_date|date:"Y-m-d" }}  浏览{{ article.views }}次</p>
+                <p class="text-gray">发布于{{ article.pub_date|date:"Y-m-d" }}  浏览{{ article.views }}次</p>
             {% endif %}
-            <p>{{ article.body }}</p>
+            <p>{{ article.body|safe }}</p>
 
             <p>标签：
                 {% for tag in article.tags.all %}

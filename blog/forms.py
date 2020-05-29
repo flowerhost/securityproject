@@ -16,6 +16,7 @@ __author__ = 'flowerhost'
 
 from django import forms
 from .models import Article
+from ckeditor_uploader.widgets import CKEditorUploadingWidget
 
 
 class ArticleForm(forms.ModelForm):
@@ -24,10 +25,8 @@ class ArticleForm(forms.ModelForm):
         model = Article
         exclude = ['author', 'views', 'slug', 'pub_date']
 
-        widgets = {
-            'title': forms.TextInput(attrs={'class': 'form-control'}),
-            'body': forms.Textarea(attrs={'class': 'form-control'}),
-            'status': forms.Select(attrs={'class': 'form-control'}),
-            'category': forms.Select(attrs={'class': 'form-control'}),
-            'tags': forms.CheckboxSelectMultiple(attrs={'class': 'multi-checkbox'}),
-        }
+        widgets = dict(title=forms.TextInput(attrs={'class': 'form-control'}),
+                       body=CKEditorUploadingWidget(attrs={'class': 'form-control'}),
+                       status=forms.Select(attrs={'class': 'form-control'}),
+                       category=forms.Select(attrs={'class': 'form-control'}),
+                       tags=forms.CheckboxSelectMultiple(attrs={'class': 'multi-checkbox'}))

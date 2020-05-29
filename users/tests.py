@@ -50,7 +50,7 @@ pro = ts.pro_api()
 """数据备份"""
 # con = sqlite3.connect('/Users/flowerhost/securityproject/db.sqlite3')
 # c = con.cursor()
-# data1 = pd.read_csv('/Users/flowerhost/securityproject/data/backup/tradelists.csv')
+# data1 = pd.read_csv('/Users/flowerhost/securityproject/data/backup/tradelists20200509.csv')
 # data1.to_sql("capital_management_tradelists", con, if_exists="append", index=False)
 # data2 = pd.read_csv('/Users/flowerhost/securityproject/data/backup/broker20200407.csv')
 # data2.to_sql("capital_management_broker", con, if_exists="append", index=False)
@@ -174,6 +174,8 @@ pro = ts.pro_api()
 # data1.reset_index(drop=True, inplace=True)
 
 """申万行业指数"""
+# df = pro.index_member(index_code='850543.SI')
+# print(df)
 # index_l3 = pro.sw_daily(trade_date='20200414')
 # index_l3 = index_l3.tail(227)
 # index_l3.to_csv('/Users/flowerhost/securityproject/data/index_l3.csv')
@@ -185,7 +187,7 @@ pro = ts.pro_api()
 #     print(l_code)
 #     index_member = pro.index_member(index_code=l_code)
 #     data = data.append(index_member, ignore_index=True)
-# #     data.to_csv('/Users/flowerhost/securityproject/data/index_member.csv')
+# data.to_csv('/Users/flowerhost/securityproject/data/index_member.csv')
 # data['ts_code'] = data['index_code']
 #
 # merge_join = pd.merge(data, index_l3, on='ts_code')
@@ -209,7 +211,16 @@ pro = ts.pro_api()
 # df_volume_ratio = pro.daily_basic(
 #         ts_code='', trade_date=end_date.strftime("%Y%m%d"), fields=['ts_code', 'trade_date', 'volume_ratio'])
 # print(df_volume_ratio)
-query_result = ts.pro_bar(ts_code='600115.SH', adj='qfg', ma=[10],
-                                                      start_date='20200101',
-                                                      end_date='20200501')
-print(query_result)
+"""复权因子 2020-05-29"""
+# adj_factor1 = pro.adj_factor(trade_date='20190528')
+# adj_factor = pro.adj_factor(trade_date='20200529')
+# adj_factor = pd.merge(adj_factor, adj_factor1, on='ts_code')
+# adj_factor['adj_factor_y'] = round(adj_factor['adj_factor_y']/adj_factor['adj_factor_x'], 2)
+# adj_factor.to_csv('/Users/flowerhost/securityproject/data/adj_factor.csv')
+month_date = pro.query('trade_cal', start_date=20190528, end_date=20200529, is_open=1,
+                           fields=['cal_date'])
+lase_date = month_date.tail(1)['cal_date'].values[0]
+begin_date = month_date['cal_date'][0]
+df = pro.monthly(start_date=begin_date, end_date=lase_date)
+df.to_csv('/Users/flowerhost/securityproject/data/monthly.csv')
+

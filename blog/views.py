@@ -11,10 +11,10 @@ from django.urls import reverse, reverse_lazy
 
 
 class ArticleListView(ListView):
-    paginate_by = 3
+    paginate_by = 100000
 
     def get_queryset(self):
-        return Article.objects.filter(status='p').order_by('-pub_date')
+        return Article.objects.filter().order_by('-mod_date')
 
 
 class ArticleDetailView(DetailView):
@@ -36,7 +36,7 @@ class ArticleDraftListView(ListView):
 
 class PublishedArticleListView(ListView):
     template_name = "blog/published_article_list.html"
-    paginate_by = 3
+    paginate_by = 100
 
     def get_queryset(self):
         return Article.objects.filter(author=self.request.user).filter(status='p').order_by('-pub_date')
@@ -83,7 +83,7 @@ def article_publish(request, pk, slug1):
     return redirect(reverse("blog:article_detail", args=[str(pk), slug1]))
 
 
-class CategoryDetailView(DeleteView):
+class CategoryDetailView(DetailView):
     model = Category
 
     def get_context_data(self, **kwargs):
@@ -98,10 +98,10 @@ class CategoryDetailView(DeleteView):
         else:
             articles = Article.objects.filter(category=self.object.id).order_by('-pub_date')
 
-        paginator = Paginator(articles, 3)
+        paginator = Paginator(articles, 100)
         page = self.request.GET.get('page')
         page_obj = paginator.get_page(page)
         context['page_obj'] = page_obj
+        context['paginator'] = paginator
         context['is_paginated'] = True
         return context
-

@@ -125,7 +125,6 @@ def dashboard(request):
         total.append(gain_loss)
         start_day = total[0][-1]
         """end eCharts demo测试"""
-
         context = {'total': total, 'start_day': start_day, 'stock_lists': stock_lists, 'nut': nut,
                    'legend_data': legend_data, 'capital_date': capital_date, 'category': category}
     return render(request, 'capital_management/dashboard.html', context)
@@ -137,7 +136,7 @@ def line(request):
     stock_name = ""
     data = []
     query_date = datetime.date.today()
-    start_query_date = query_date - datetime.timedelta(weeks=120)
+    start_query_date = query_date - datetime.timedelta(weeks=20)
 
     if request.method == "POST":
         stock_code = request.POST.get("stock_code")
@@ -225,6 +224,7 @@ def trade(request):
 
             # 手续费总计
             new_trade.total_fee = round(new_trade.stamp_duty + new_trade.transfer_fee + new_trade.brokerage, 2)
+            new_trade.clear_flag = 1
 
             # 交易总额
             if new_trade.flag == 'B':
@@ -532,81 +532,87 @@ def balance(request):
                                           update_flag=update_flag)
 
     """Performance交易表现评价"""
-    # 如果是16：15之前，禁止提取数据。
-    check_time = datetime.datetime.strptime(str(datetime.date.today()) + '9:00', '%Y-%m-%d%H:%M')
-    now_time = datetime.datetime.now()
-    if now_time < check_time:
-        pass
+
+    close = 0
+    high_price = 0
+    low_price = 0
+    moving_average = 0
+    boll_up = 0
+    boll_down = 0
+    performance = 0
+    trade_performance = 0
+
+    # 判断 Performance表状态
+    if TradePerformance.objects.exists():
+        performance_id_cursor = TradePerformance.objects.latest().id
+        performance_score_date = TradePerformance.objects.latest().date
     else:
-        close = 0
-        high_price = 0
-        low_price = 0
-        moving_average = 0
-        boll_up = 0
-        boll_down = 0
-        performance = 0
-        trade_performance = 0
+        performance_id_cursor = 0
+        performance_score_date = TradeLists.objects.earliest().date
 
-        # 判断 Performance表状态
-        if TradePerformance.objects.exists():
-            performance_id_cursor = TradePerformance.objects.latest().id
-            performance_score_date = TradePerformance.objects.latest().date
-        else:
-            performance_id_cursor = 0
-            performance_score_date = TradeLists.objects.earliest().date
+    performance_ma_date = performance_score_date - datetime.timedelta(days=30)  # 获取tushare均线值用
+    # 获取TradeLists交易流水数据
+    latest_date = TradeLists.objects.latest().date
 
-        performance_ma_date = performance_score_date - datetime.timedelta(days=30)  # 获取tushare均线值用
-        # 获取TradeLists交易流水数据
-        latest_date = TradeLists.objects.latest().date
+    while performance_score_date <= latest_date:
+        performance_data_set = TradeLists.objects.filter(date=performance_score_date).values('id', 'code', 'price',
+                                                                                             'flag')
 
-        while performance_score_date <= latest_date:
-            performance_data_set = TradeLists.objects.filter(date=performance_score_date).values('id', 'code', 'price',
-                                                                                                 'flag')
+        for performance_data in performance_data_set:
+            if performance_data_set.exists():
+                performance_id_cursor = performance_id_cursor + 1
+                performance_code = performance_data['code']
+                performance_trade_id = performance_data['id']
+                performance_price = performance_data['price']
+                performance_flag = performance_data['flag']  # 用于计算交易表现分值--performance
+                if performance_flag == 'B':
+                    p_flag = True
+                elif performance_flag == 'R':
+                    p_flag = True
+                else:
+                    p_flag = False
 
-            for performance_data in performance_data_set:
-                if performance_data_set.exists():
-                    performance_id_cursor = performance_id_cursor + 1
-                    performance_code = performance_data['code']
-                    performance_trade_id = performance_data['id']
-                    performance_price = performance_data['price']
-                    performance_flag = performance_data['flag']  # 用于计算交易表现分值--performance
-                    if performance_flag == 'B':
-                        p_flag = True
-                    elif performance_flag == 'R':
-                        p_flag = True
+                for _ in range(3):
+                    # 获得股票收盘数据
+                    try:
+                        query_result = ts.pro_bar(ts_code=performance_code, adj='qfg', ma=[10],
+                                                  start_date=performance_ma_date.strftime("%Y%m%d"),
+                                                  end_date=performance_score_date.strftime("%Y%m%d"))
+                    except:
+                        time.sleep(1)
                     else:
-                        p_flag = False
+                        close = query_result['close'][0]
+                        high_price = query_result['high'].values[0]
+                        low_price = query_result['low'].values[0]
+                        moving_average = round(query_result['ma10'].values[0], 2)
+                        boll_up = round(moving_average * 1.09, 2)
+                        boll_down = round(moving_average * 0.91, 2)
 
-                    for _ in range(3):
-                        # 获得股票收盘数据
-                        try:
-                            query_result = ts.pro_bar(ts_code=performance_code, adj='qfg', ma=[10],
-                                                      start_date=performance_ma_date.strftime("%Y%m%d"),
-                                                      end_date=performance_score_date.strftime("%Y%m%d"))
-                        except:
-                            time.sleep(1)
+                        performance = round((performance_price - low_price) / (high_price - low_price), 2)
+                        # 换算买入表现分值，使得其意义与卖入表现分值所代表的意义一致，分值越高，其表现越好。
+                        if p_flag:
+                            performance = round((1 - performance), 2)
+                            trade_performance = 0
                         else:
-                            print(query_result)
-                            close = query_result['close'][0]
-                            high_price = query_result['high'].values[0]
-                            low_price = query_result['low'].values[0]
-                            moving_average = round(query_result['ma10'].values[0], 2)
-                            boll_up = round(moving_average * 1.09, 2)
-                            boll_down = round(moving_average * 0.91, 2)
+                            trade_price = TradeLists.objects.filter(
+                                code=performance_code, flag='B', date__lt=performance_score_date).values(
+                                'price', 'tradeperformance__boo_down').latest()
+                            trade_performance = round((performance_price - trade_price['price']) /
+                                                      (boll_up - trade_price['tradeperformance__boo_down']), 2)
 
-                            performance = round((performance_price - low_price) / (high_price - low_price), 2)
-                            # 换算买入表现分值，使得其意义与卖入表现分值所代表的意义一致，分值越高，其表现越好。
-                            if p_flag:
-                                performance = round((1 - performance), 2)
-                                trade_performance = 0
-                            else:
-                                trade_price = TradeLists.objects.filter(
-                                    code=performance_code, flag='B', date__lt=performance_score_date).values(
-                                    'price', 'tradeperformance__boo_down').latest()
-                                trade_performance = round((performance_price - trade_price['price']) /
-                                                          (boll_up - trade_price['tradeperformance__boo_down']), 2)
-
-                    if not TradePerformance.objects.exists():
+                if not TradePerformance.objects.exists():
+                    TradePerformance.objects.create(id=performance_id_cursor, close=close,
+                                                    moving_average=moving_average,
+                                                    high_price=high_price, low_price=low_price, boll_up=boll_up,
+                                                    boo_down=boll_down, performance=performance,
+                                                    trade_id=performance_trade_id,
+                                                    trade_performance=trade_performance,
+                                                    date=performance_score_date)
+                else:
+                    flag = TradePerformance.objects.filter(trade_id=performance_trade_id)
+                    if flag:
+                        pass
+                    else:
                         TradePerformance.objects.create(id=performance_id_cursor, close=close,
                                                         moving_average=moving_average,
                                                         high_price=high_price, low_price=low_price, boll_up=boll_up,
@@ -614,20 +620,9 @@ def balance(request):
                                                         trade_id=performance_trade_id,
                                                         trade_performance=trade_performance,
                                                         date=performance_score_date)
-                    else:
-                        flag = TradePerformance.objects.filter(trade_id=performance_trade_id)
-                        if flag:
-                            pass
-                        else:
-                            TradePerformance.objects.create(id=performance_id_cursor, close=close,
-                                                            moving_average=moving_average,
-                                                            high_price=high_price, low_price=low_price, boll_up=boll_up,
-                                                            boo_down=boll_down, performance=performance,
-                                                            trade_id=performance_trade_id,
-                                                            trade_performance=trade_performance,
-                                                            date=performance_score_date)
 
-            performance_score_date = performance_score_date + datetime.timedelta(days=1)
+        performance_score_date = performance_score_date + datetime.timedelta(days=1)
+
 
     """全市场综合排名"""
     """日监控指标体系 2020-04-04
@@ -662,7 +657,7 @@ def balance(request):
                        '20170331', '20170630', '20170930', '20171231',
                        '20180331', '20180630', '20180930', '20181231',
                        '20190331', '20190630', '20190930', '20191231',
-                       '20200331']:
+                       '20200331', '20200630']:
         query_data = pro.query('fina_indicator_vip', start_date=query_date, end_date=query_date)
         prepare_data = prepare_data.append(query_data, ignore_index=True)
     # 2、财务数据清洗，删除roe为空值的行。
@@ -716,12 +711,13 @@ def balance(request):
                            end_date=end_date.strftime("%Y%m%d"), is_open=1, fields=['cal_date'])
 
     # 判断时间，当前提取时间18：00以后，取当日数据，否则取前一日数据。
-    check_time = datetime.datetime.strptime(str(datetime.date.today()) + '18:00', '%Y-%m-%d%H:%M')
+    check_time = datetime.datetime.strptime(str(datetime.date.today()) + '17:00', '%Y-%m-%d%H:%M')
     now_time = datetime.datetime.now()
     if now_time > check_time:
         daily_end_date = trade_date.tail(1)['cal_date'].values[0]
         daily_start_date = trade_date.tail(250)['cal_date'].values[0]
         industry_20_days = trade_date.tail(20)['cal_date'].values[0]
+        industry_1_weeks = trade_date.tail(5)['cal_date'].values[0]
         industry_3_weeks = trade_date.tail(15)['cal_date'].values[0]
         industry_6_weeks = trade_date.tail(30)['cal_date'].values[0]
         industry_7_months = trade_date.tail(140)['cal_date'].values[0]
@@ -741,9 +737,11 @@ def balance(request):
         daily_end_date = trade_date.tail(2)['cal_date'].values[0]
         daily_start_date = trade_date.tail(251)['cal_date'].values[0]
         industry_20_days = trade_date.tail(21)['cal_date'].values[0]
+        industry_1_weeks = trade_date.tail(6)['cal_date'].values[0]
         industry_3_weeks = trade_date.tail(16)['cal_date'].values[0]
         industry_6_weeks = trade_date.tail(31)['cal_date'].values[0]
         industry_7_months = trade_date.tail(141)['cal_date'].values[0]
+
 
         # 获取本年度第一个交易日
         trade_date['cal_date'] = trade_date['cal_date'].astype('str')  # 转化为str型，为下条语句使用。
@@ -760,15 +758,21 @@ def balance(request):
     df_volume_ratio = pro.daily_basic(
         ts_code='', trade_date=daily_end_date, fields=['ts_code', 'volume_ratio'])
     df_history = pro.daily(trade_date=daily_start_date, fields=['ts_code', 'close'])
-    df_current = pro.daily(trade_date=daily_end_date, fields=['ts_code', 'close', 'change', 'pct_chg'])
+    df_current = pro.daily(trade_date=daily_end_date, fields=['ts_code', 'close', 'high', 'change', 'pct_chg'])
     data_rps = pd.merge(df_history, df_current, on='ts_code')
+    print(data_rps)
+
+    # 获得最新的港股通持股比例
+    hk_hold = pro.hk_hold(trade_date=front_date, fields=['ts_code', 'ratio'])
+    data_rps = pd.merge(data_rps, hk_hold, how='left')
+    print(data_rps)
 
     # 获取最新的行业板块L3指数行情,计算行业RPS排名。
     l3_last_year = pro.sw_daily(trade_date=last_year_date)
     l3_current = pro.sw_daily(trade_date=daily_end_date)
     l3_front = pro.sw_daily(trade_date=front_date)
     l3_year = pro.sw_daily(trade_date=new_year_date)
-    l3_week = pro.sw_daily(trade_date=week_first_date)
+    l3_week = pro.sw_daily(trade_date=industry_1_weeks)
 
     l3_20_days = pro.sw_daily(trade_date=industry_20_days)
     l3_3_weeks = pro.sw_daily(trade_date=industry_3_weeks)
@@ -776,6 +780,7 @@ def balance(request):
     l3_7_months = pro.sw_daily(trade_date=industry_7_months)
     print(week_first_date, daily_end_date, last_year_date, new_year_date, front_date, industry_3_weeks,
           industry_6_weeks)
+    print(l3_current)
 
     # 20日板块强度
     l3_rps = pd.merge(l3_20_days, l3_current, on='ts_code')
@@ -861,6 +866,7 @@ def balance(request):
     total_industry_rps = pd.merge(total_industry_rps, l3_6_weeks_rps, on='index_code')
     total_industry_rps = pd.merge(total_industry_rps, l3_7_months_rps, on='index_code')
     total_industry_rps['date'] = datetime.datetime.strptime(daily_end_date, "%Y%m%d").date()
+    total_industry_rps.to_csv('/Users/flowerhost/securityproject/data/total.csv')
 
     # 个股与行业指数L3相关联
     industry_member = pd.DataFrame()
@@ -881,7 +887,7 @@ def balance(request):
         5、全市场综合排名前20股票，股价上涨和下跌的排名20的股票。
     """
     # 11、获取52周最高价，拼接成完整的年度数据。
-    # 1.取历史完整月份数据
+    # 1.取历史月数据 TODO: 轮询过多，造成时间过长，应该只做每月最后一个交易日的数据提取即可。
     month_date = pro.query('trade_cal', start_date=daily_start_date, end_date=daily_end_date, is_open=1,
                            fields=['cal_date'])
     for query_date in month_date['cal_date']:
@@ -895,16 +901,17 @@ def balance(request):
     for query_date in daily_date['cal_date']:
         query_data = pro.daily(trade_date=query_date, fields=['trade_date', 'ts_code', 'high'])
         high_data = high_data.append(query_data, ignore_index=True)
-    # 3.取最早历史月的日数据
-    history_first_day = datetime.datetime.strptime(daily_start_date, "%Y%m%d").date()
-    history_first_day = datetime.date(year=history_first_day.year, month=history_first_day.month, day=1)
-    history_date = pro.query('trade_cal', start_date=history_first_day.strftime("%Y%m%d"), end_date=daily_start_date,
-                             is_open=1, fields=['cal_date'])
-    for query_date in history_date['cal_date']:
-        query_data = pro.daily(trade_date=query_date, fields=['trade_date', 'ts_code', 'high'])
-        high_data = high_data.append(query_data, ignore_index=True)
     # 4.获得完整的52周最高价数据
     high_data = high_data.groupby('ts_code')['high'].max()
+    # 5.获得复权数据
+    adj_factor1 = pro.adj_factor(trade_date=month_date['cal_date'][0])
+    adj_factor = pro.adj_factor(trade_date=daily_end_date)
+    adj_factor = pd.merge(adj_factor, adj_factor1, on='ts_code')
+    adj_factor['adj_factor'] = adj_factor['adj_factor_y']/adj_factor['adj_factor_x']
+    # 6.前复权最高价
+    high_data = pd.merge(high_data, adj_factor, on='ts_code')
+    high_data['high'] = round(high_data['high']*high_data['adj_factor'], 2)
+    high_data = high_data[['ts_code', 'high']]
 
     # 12、数据联合
     data_rps = pd.merge(data_rps, high_data, on='ts_code')
@@ -912,13 +919,23 @@ def balance(request):
     data_rps.sort_values(by='ts_code', ascending=True, inplace=True)
     data_rps.reset_index(drop=True, inplace=True)
 
-    # 13、计算RPS排名，计算52周最高价与当前价的下降幅度。
+    # 13、TODO:计算RPS排名，计算52周最高价与当前价的下降幅度，判断当日是否突破年新高价格。
     data_rps['rps'] = data_rps.apply(lambda m: round((m['close_y'] - m['close_x']) / m['close_x'], 2), axis=1).rank(
         ascending=True)
     x = data_rps['ts_code'].count()
     data_rps['rps'] = round(100 * data_rps['rps'] / x, 1)
-    data_rps['decline_range'] = data_rps.apply(lambda m: round(100 * (m['close_y'] - m['high']) / m['high'], 1),
+    data_rps['decline_range'] = data_rps.apply(lambda m: round(100 * (m['close_y'] - m['high_y']) / m['high_y'], 1),
                                                axis=1)
+    data_rps['new_high'] = data_rps.apply(lambda m: round(m['high_x']-m['high_y'], 2), axis=1)
+
+    # 判断当日是否突破年新高价格。
+    data_rps['new_high_flag'] = data_rps['new_high']
+    data_rps.loc[data_rps['new_high'] < 0, 'new_high_flag'] = 0
+    data_rps.loc[data_rps['new_high'] >= 0, 'new_high_flag'] = 1
+    # 计算涨幅超过7%的股票
+    data_rps['percent_7_rise'] = data_rps['pct_chg']
+    data_rps.loc[data_rps['pct_chg'] >= 5, 'percent_7_rise'] = 1
+    data_rps.loc[data_rps['pct_chg'] < 5, 'percent_7_rise'] = 0
 
     # 14、数据联合,计算综合排名。
     data_cumulative_rank = pd.merge(eps_smr_stability, data_rps, on='ts_code')
@@ -929,45 +946,49 @@ def balance(request):
         axis=1).rank(ascending=True)
     x = data_cumulative_rank['ts_code'].count()
     data_cumulative_rank['cumulative_rank'] = round(100 * data_cumulative_rank['cumulative_rank'] / x, 1)
+    data_cumulative_rank['pct_chg'] = round(data_cumulative_rank['pct_chg'], 2)
     data_cumulative_rank.reset_index(drop=True, inplace=True)
     data_cumulative_rank['period_date'] = pd.to_datetime(data_cumulative_rank['end_date'], dayfirst=True)
     data_cumulative_rank['period_date'] = data_cumulative_rank['period_date'].dt.strftime('%Y-%m-%d')
     data_cumulative_rank['ann_date'] = pd.to_datetime(data_cumulative_rank['ann_date'], dayfirst=True)
     data_cumulative_rank['ann_date'] = data_cumulative_rank['ann_date'].dt.strftime('%Y-%m-%d')
     data_cumulative_rank['code'] = data_cumulative_rank['ts_code']
+    data_cumulative_rank['hk_hold'] = data_cumulative_rank['ratio']
+    # TODO: 计算年内新高。
+    new_high = data_cumulative_rank.groupby('industry_name')['new_high_flag'].sum()
+    # TODO: 计算涨幅超过7%的股票
+    percent_7_rise = data_cumulative_rank.groupby('industry_name')['percent_7_rise'].sum()
+    data_cumulative_rank.to_csv('/Users/flowerhost/securityproject/data/data_rps.csv')
+
     data_cumulative_rank = data_cumulative_rank[
         ['code', 'cumulative_rank', 'new_quarter_eps', 'eps', 'rps', 'smr', 'eps_stability', 'decline_range',
-         'volume_ratio', 'index_code', 'industry_name', 'industry_rps', 'period_date', 'ann_date']]
+         'volume_ratio', 'index_code', 'industry_name', 'industry_rps', 'period_date', 'ann_date', 'hk_hold', 'pct_chg']]
 
-    # 行业强度监控数据和个股聚合
-    industry_monitor = pd.merge(total_industry_rps, data_cumulative_rank, on='index_code')
-    industry_monitor['industry_name'] = industry_monitor['industry_name_x']
-    industry_monitor = industry_monitor[['index_code', 'industry_name', 'industry_base_rank', 'industry_base_rps',
-                                         'industry_front_rank', 'industry_front_rps', 'industry_year_rank',
-                                         'industry_year_rps', 'industry_week_rank', 'industry_week_rps',
-                                         'industry_3_rank', 'industry_3_rps', 'industry_6_rank', 'industry_6_rps',
-                                         'industry_7_rank', 'industry_7_rps', 'code', 'cumulative_rank',
-                                         'new_quarter_eps', 'eps', 'rps', 'smr', 'eps_stability', 'decline_range',
-                                         'volume_ratio', 'period_date', 'ann_date']]
-    industry_monitor.to_csv('/Users/flowerhost/securityproject/data/monitor.csv')
+    # 行业强度监控数据和个股聚合 TODO:
+    # industry_monitor = pd.merge(total_industry_rps, data_cumulative_rank, on='index_code')
+    # industry_monitor['industry_name'] = industry_monitor['industry_name_x']
+    total_industry_rps = pd.merge(total_industry_rps, new_high, on='industry_name')
+    total_industry_rps = pd.merge(total_industry_rps, percent_7_rise, on='industry_name')
+    # industry_monitor['industry_name'] = industry_monitor['industry_name_x']
+    # industry_monitor.to_csv('/Users/flowerhost/securityproject/data/new_high.csv')
+    # industry_monitor = industry_monitor[['index_code', 'industry_name', 'industry_base_rank', 'industry_base_rps',
+    #                                      'industry_front_rank', 'industry_front_rps', 'industry_year_rank',
+    #                                      'industry_year_rps', 'industry_week_rank', 'industry_week_rps',
+    #                                      'industry_3_rank', 'industry_3_rps', 'industry_6_rank', 'industry_6_rps',
+    #                                      'industry_7_rank', 'industry_7_rps', 'code', 'cumulative_rank',
+    #                                      'new_quarter_eps', 'eps', 'rps', 'smr', 'eps_stability', 'decline_range',
+    #                                      'volume_ratio', 'period_date', 'ann_date']]
+
+    # industry_monitor.to_csv('/Users/flowerhost/securityproject/data/monitor.csv')
 
     # 15、写数据库
     con = sqlite3.connect('/Users/flowerhost/securityproject/db.sqlite3')
     data_cumulative_rank.to_sql("capital_management_cumulativerank", con, if_exists="replace", index=False)
     data_cumulative_rank.to_csv('/Users/flowerhost/securityproject/data/RPS_SMR.csv')
     total_industry_rps.to_sql('capital_management_monitorindustry', con, if_exists="replace", index=False)
+    total_industry_rps.to_csv('/Users/flowerhost/securityproject/data/industry_rps.csv')
 
     return redirect('capital_management:index')
-
-
-def evaluate(request):
-    """全市场综合排名"""
-    # 页面展示
-    cumulative_ranks = CumulativeRank.objects.filter(eps_stability__lt=35, cumulative_rank__gt=79, new_quarter_eps__gt=40, eps__gt=79).values(
-        'code', 'eps', 'eps_stability', 'smr', 'period_date', 'rps', 'cumulative_rank', 'decline_range', 'volume_ratio',
-        'ann_date', 'new_quarter_eps', 'industry_name', 'industry_rps').order_by('-cumulative_rank')
-
-    return render(request, 'capital_management/evaluate.html', locals())
 
 
 def capital_manage(request):
@@ -1138,5 +1159,16 @@ def monitor(request):
     # 页面展示
     industry_ranks = MonitorIndustry.objects.values(
         'industry_name', 'industry_week_rank', 'industry_3_rank', 'industry_6_rank', 'industry_7_rank',
-        'date').order_by('-industry_week_rank')
+        'date', 'new_high_flag', 'percent_7_rise').order_by('-new_high_flag')
     return render(request, 'capital_management/monitor.html', locals())
+
+
+def evaluate(request):
+    """全市场综合排名"""
+    # 页面展示
+    cumulative_ranks = CumulativeRank.objects.filter().values(
+        'code', 'eps', 'eps_stability', 'smr', 'period_date', 'rps', 'cumulative_rank', 'decline_range', 'volume_ratio',
+        'ann_date', 'new_quarter_eps', 'industry_name', 'industry_rps', 'hk_hold', 'pct_chg').order_by('-cumulative_rank')
+
+    return render(request, 'capital_management/evaluate.html', locals())
+

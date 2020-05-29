@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from unidecode import unidecode
 from django.template.defaultfilters import slugify
+from ckeditor_uploader.fields import RichTextUploadingField
 import datetime
 
 
@@ -57,16 +58,16 @@ class Article(models.Model):
 
     title = models.CharField(max_length=200, unique=True, verbose_name='标题')
     slug = models.SlugField(max_length=60, blank=True, verbose_name='slug')
-    body = models.TextField(verbose_name='正文')
+    body = RichTextUploadingField(verbose_name='正文')
     pub_date = models.DateTimeField(verbose_name='发布时间', null=True)
     create_date = models.DateTimeField(verbose_name='创建时间', auto_now_add=True)
     mod_date = models.DateTimeField(verbose_name='修改时间', auto_now=True)
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='p')
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='p', verbose_name='文章状态')
     views = models.PositiveIntegerField(verbose_name='浏览量', default=0)
     author = models.ForeignKey(User, verbose_name='作者', on_delete=models.CASCADE, blank=False, null=False)
 
-    category = models.ForeignKey(Category, verbose_name='分类', on_delete=models.CASCADE, default=1, blank=False, null=False)
-    tags = models.ManyToManyField(Tag, verbose_name='标签集合', blank=True)
+    category = models.ForeignKey(Category, verbose_name='文章类别', on_delete=models.CASCADE, default=0, blank=False, null=False)
+    tags = models.ManyToManyField(Tag, verbose_name='内容标签', blank=True)
 
     def __str__(self):
         return self.title
@@ -79,7 +80,7 @@ class Article(models.Model):
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
-        return reverse('blog: article_detail', args=[str(self.pk), self.slug])
+        return reverse('blog:article_detail', args=[str(self.pk), self.slug])
 
     def clean(self):
         # Don't allow draft entries to have a pub_date

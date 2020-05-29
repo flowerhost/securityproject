@@ -51,6 +51,8 @@
                         <th>6周强度</th>
                         <th>7个月强度</th>
                         <th>行业名称</th>
+                        <th> 当日新高数</th>
+                        <th>涨幅超过5%数</th>
                         <th>日期</th>
                     </tr>
                 </thead>
@@ -70,6 +72,8 @@
                             <td class="text-red bg-success">{{ industry.industry_7_rank }}</td>
 
                             <td class="text-red bg-success">{{ industry.industry_name }}</td>
+                            <td class="text-red bg-success">{{ industry.new_high_flag }}</td>
+                            <td class="text-red bg-success">{{ industry.percent_7_rise }}</td>
 
                             <td class="text-red bg-success">{{ industry.date }}</td>
 

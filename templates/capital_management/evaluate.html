@@ -57,6 +57,8 @@
                         <th>成交量比</th>
                         <th>行业板块</th>
                         <th>20日行业强度(RPS)</th>
+                        <th>港股通持股占比(%)</th>
+                        <th>当日涨幅(%)</th>
                         <th>公告日期</th>
                         <th>最新报告期</th>
                     </tr>
@@ -142,6 +144,17 @@
                             <td class="text-red bg-success">{{ cumulation.industry_rps }}</td>
                         {% else %}
                             <td class="text-blue bg-danger">{{ cumulation.industry_rps }}</td>
+                        {% endif %}
+
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.hk_hold }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.hk_hold }}</td>
+                        {% endif %}
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.pct_chg }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.pct_chg }}</td>
                         {% endif %}
 
                         {% if cumulation.eps_stability < 30 %}

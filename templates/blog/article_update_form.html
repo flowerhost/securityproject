@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}更新笔记{% endblock %}
+
+{% block css %}
+     <link rel="stylesheet" href="{% static 'AdminLTE-2.4.10/bower_components/datatables.net-bs/css/dataTables.bootstrap.min.css' %}">
+{% endblock %}
+
+{% block breadcrumb %}
+<!-- Content Header (Page header) -->
+    <section class="content-header">
+      <h1>
+        操盘笔记
+        <small>更新</small>
+      </h1>
+      <ol class="breadcrumb">
+        <li><a href="#"><i class="fa fa-dashboard"></i> 主页</a></li>
+        <li class="active">操盘笔记</li>
+      </ol>
+    </section>
+{% endblock %}
+
+{% block content %}
+    <div class="col-md-12">
+      <div class="box box-success">
+        <div class="box-body">
+            <form class="form-horizontal" method="post" role="form" action="">
+              <div class="box-body">
+                  {% csrf_token %}
+                  {{ form.media }}
+                  {{ form }}
+              </div>
+              <div class="box-footer">
+                <button type="submit" class="btn btn-default">取消</button>
+                <button type="submit" class="btn btn-info pull-right">提交</button>
+              </div>
+              <!-- /.box-footer -->
+            </form>
+
+        </div>
+        <!-- /.box-body -->
+      </div>
+   </div>
+{% endblock %}
+
+{% block script %}
+
+<!-- DataTables -->
+<script src="{% static 'AdminLTE-2.4.10/bower_components/datatables.net/js/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'AdminLTE-2.4.10/bower_components/datatables.net-bs/js/dataTables.bootstrap.min.js' %}"></script>
+<!-- page script -->
+
+{% endblock %}

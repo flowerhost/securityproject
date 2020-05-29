@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}笔记清单{% endblock %}
+
+{% block css %}
+     <link rel="stylesheet" href="{% static 'AdminLTE-2.4.10/bower_components/datatables.net-bs/css/dataTables.bootstrap.min.css' %}">
+{% endblock %}
+
+{% block breadcrumb %}
+{% endblock %}
+
+{% block content %}
+   <div class="col-md-12">
+
+        <p>文章类别:
+            {% if category.parent_category %}
+                <a href="{% url 'blog:category_detail' category.parent_category.slug %}">{{ category.parent_category.name }}</a> /
+            {% endif %}
+                <a href="{% url 'blog:category_detail' category.slug %}">{{ category }}</a>
+        </p>
+        <h3>笔记清单</h3>
+
+        {% if page_obj %}
+            <ul>
+                {% for article in page_obj %}
+                    <li><a href="{% url 'blog:article_detail' article.id article.slug %}"> {{ article.title }}</a> {{ article.pub_date | date:"Y-m-j" }}</li>
+                {% endfor %}
+            </ul>
+
+            {% if is_paginated %}
+                <ul class="pagination">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">前一页</a></li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">前一页</span></li>
+                    {% endif %}
+
+                    {% for i in paginator.page_range %}
+                        {% if page_obj.number == i %}
+                            <li class="page-item active"><span class="page-link"> {{ i }} <span class="sr-only">(current)</span></span></li>
+                        {% else %}
+                            <li class="page-item"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">下一页</a></li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">下一页</span></li>
+                    {% endif %}
+                </ul>
+            {% endif %}
+
+        {% else %}
+            <p>No article yet.</p>
+        {% endif %}
+
+   </div>
+{% endblock %}
+
+{% block script %}
+
+<!-- DataTables -->
+<script src="{% static 'AdminLTE-2.4.10/bower_components/datatables.net/js/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'AdminLTE-2.4.10/bower_components/datatables.net-bs/js/dataTables.bootstrap.min.js' %}"></script>
+<!-- page script -->
+
+{% endblock %}

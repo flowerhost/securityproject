@@ -42,6 +42,9 @@ urlpatterns = [
     #  删除文章
     re_path(r'^article/(?P<pk>\d+)/(?P<slug1>[-\w]+)/delete$', views.ArticleDeleteView.as_view(),
             name='article_delete'),
+    # 展示类别列表
+    # re_path(r'^category/$',
+    #         views.ArticleDraftListView.as_view(), name='category_list'),
 
     # 展示类别详情
     re_path(r'^category/(?P<slug>[-\w]+)/$',
