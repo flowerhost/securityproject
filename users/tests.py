@@ -212,15 +212,10 @@ pro = ts.pro_api()
 #         ts_code='', trade_date=end_date.strftime("%Y%m%d"), fields=['ts_code', 'trade_date', 'volume_ratio'])
 # print(df_volume_ratio)
 """复权因子 2020-05-29"""
-# adj_factor1 = pro.adj_factor(trade_date='20190528')
+# adj_factor1 = pro.adj_factor(trade_date='20200106')
 # adj_factor = pro.adj_factor(trade_date='20200529')
 # adj_factor = pd.merge(adj_factor, adj_factor1, on='ts_code')
-# adj_factor['adj_factor_y'] = round(adj_factor['adj_factor_y']/adj_factor['adj_factor_x'], 2)
+# adj_factor['adj_factor'] = round(adj_factor['adj_factor_y']/adj_factor['adj_factor_x'], 2)
 # adj_factor.to_csv('/Users/flowerhost/securityproject/data/adj_factor.csv')
-month_date = pro.query('trade_cal', start_date=20190528, end_date=20200529, is_open=1,
-                           fields=['cal_date'])
-lase_date = month_date.tail(1)['cal_date'].values[0]
-begin_date = month_date['cal_date'][0]
-df = pro.monthly(start_date=begin_date, end_date=lase_date)
-df.to_csv('/Users/flowerhost/securityproject/data/monthly.csv')
-
+weekend = datetime.datetime.today().weekday()
+print(weekend)

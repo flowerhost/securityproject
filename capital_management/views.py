@@ -742,7 +742,6 @@ def balance(request):
         industry_6_weeks = trade_date.tail(31)['cal_date'].values[0]
         industry_7_months = trade_date.tail(141)['cal_date'].values[0]
 
-
         # 获取本年度第一个交易日
         trade_date['cal_date'] = trade_date['cal_date'].astype('str')  # 转化为str型，为下条语句使用。
         new_year_date = trade_date[trade_date['cal_date'].str.contains(year)].head(1).values[0][0]
@@ -754,18 +753,50 @@ def balance(request):
         week_first_date = week_date.head(1)['cal_date'].values[0]
         # 获取前一交易日
         front_date = trade_date.tail(3)['cal_date'].values[0]
+
+    # 周六、日执行数据提取时的时间设置。
+    weekend = datetime.datetime.today().weekday()
+    if weekend in [5, 6]:
+        daily_end_date = trade_date.tail(1)['cal_date'].values[0]
+        daily_start_date = trade_date.tail(250)['cal_date'].values[0]
+        industry_20_days = trade_date.tail(20)['cal_date'].values[0]
+        industry_1_weeks = trade_date.tail(5)['cal_date'].values[0]
+        industry_3_weeks = trade_date.tail(15)['cal_date'].values[0]
+        industry_6_weeks = trade_date.tail(30)['cal_date'].values[0]
+        industry_7_months = trade_date.tail(140)['cal_date'].values[0]
+
+        # 获取本年度第一个交易日
+        trade_date['cal_date'] = trade_date['cal_date'].astype('str')  # 转化为str型，为下条语句使用。
+        new_year_date = trade_date[trade_date['cal_date'].str.contains(year)].head(1).values[0][0]
+        # 获取上一年度最后一个交易日
+        last_year_date = trade_date[trade_date['cal_date'].str.contains(last_year)].tail(1).values[0][0]
+        # 获取本周第一个交易日
+        week_date = pro.query('trade_cal', start_date=week_first_day.strftime("%Y%m%d"),
+                              end_date=end_date.strftime("%Y%m%d"), is_open=1, fields=['cal_date'])
+        week_first_date = week_date.head(1)['cal_date'].values[0]
+        # 获取前一交易日
+        front_date = trade_date.tail(2)['cal_date'].values[0]
+
     # 10、获得最新的股票交易数据收盘价和成交量比.
     df_volume_ratio = pro.daily_basic(
         ts_code='', trade_date=daily_end_date, fields=['ts_code', 'volume_ratio'])
     df_history = pro.daily(trade_date=daily_start_date, fields=['ts_code', 'close'])
     df_current = pro.daily(trade_date=daily_end_date, fields=['ts_code', 'close', 'high', 'change', 'pct_chg'])
     data_rps = pd.merge(df_history, df_current, on='ts_code')
-    print(data_rps)
 
-    # 获得最新的港股通持股比例
-    hk_hold = pro.hk_hold(trade_date=front_date, fields=['ts_code', 'ratio'])
+    # 获得最新的港股通持股比例 如果当日23：00提取数据，只能提取前一天沪港通数据
+    check_hk_time = datetime.datetime.strptime(str(datetime.date.today()) + '23:00', '%Y-%m-%d%H:%M')
+    if now_time > check_hk_time:
+        hk_date = front_date
+    else:
+        hk_date = daily_end_date
+
+    if weekend in [5, 6]:
+        hk_date = daily_end_date
+
+    hk_hold = pro.hk_hold(trade_date=hk_date, fields=['ts_code', 'ratio'])
+
     data_rps = pd.merge(data_rps, hk_hold, how='left')
-    print(data_rps)
 
     # 获取最新的行业板块L3指数行情,计算行业RPS排名。
     l3_last_year = pro.sw_daily(trade_date=last_year_date)
@@ -779,8 +810,7 @@ def balance(request):
     l3_6_weeks = pro.sw_daily(trade_date=industry_6_weeks)
     l3_7_months = pro.sw_daily(trade_date=industry_7_months)
     print(week_first_date, daily_end_date, last_year_date, new_year_date, front_date, industry_3_weeks,
-          industry_6_weeks)
-    print(l3_current)
+          industry_6_weeks, hk_date)
 
     # 20日板块强度
     l3_rps = pd.merge(l3_20_days, l3_current, on='ts_code')
@@ -903,8 +933,8 @@ def balance(request):
         high_data = high_data.append(query_data, ignore_index=True)
     # 4.获得完整的52周最高价数据
     high_data = high_data.groupby('ts_code')['high'].max()
-    # 5.获得复权数据
-    adj_factor1 = pro.adj_factor(trade_date=month_date['cal_date'][0])
+    # 5.获得复权数据 不精确。
+    adj_factor1 = pro.adj_factor(trade_date=new_year_date)
     adj_factor = pro.adj_factor(trade_date=daily_end_date)
     adj_factor = pd.merge(adj_factor, adj_factor1, on='ts_code')
     adj_factor['adj_factor'] = adj_factor['adj_factor_y']/adj_factor['adj_factor_x']
@@ -926,13 +956,17 @@ def balance(request):
     data_rps['rps'] = round(100 * data_rps['rps'] / x, 1)
     data_rps['decline_range'] = data_rps.apply(lambda m: round(100 * (m['close_y'] - m['high_y']) / m['high_y'], 1),
                                                axis=1)
+    # 修正新高数据不准确，因复权因子影响的结果。
+    data_rps['decline_range_0'] = data_rps['decline_range']
+    data_rps.loc[data_rps['decline_range_0'] >= 0, 'decline_range'] = 0
+
     data_rps['new_high'] = data_rps.apply(lambda m: round(m['high_x']-m['high_y'], 2), axis=1)
 
     # 判断当日是否突破年新高价格。
     data_rps['new_high_flag'] = data_rps['new_high']
     data_rps.loc[data_rps['new_high'] < 0, 'new_high_flag'] = 0
     data_rps.loc[data_rps['new_high'] >= 0, 'new_high_flag'] = 1
-    # 计算涨幅超过7%的股票
+    # 计算涨幅超过5%的股票
     data_rps['percent_7_rise'] = data_rps['pct_chg']
     data_rps.loc[data_rps['pct_chg'] >= 5, 'percent_7_rise'] = 1
     data_rps.loc[data_rps['pct_chg'] < 5, 'percent_7_rise'] = 0
@@ -956,7 +990,7 @@ def balance(request):
     data_cumulative_rank['hk_hold'] = data_cumulative_rank['ratio']
     # TODO: 计算年内新高。
     new_high = data_cumulative_rank.groupby('industry_name')['new_high_flag'].sum()
-    # TODO: 计算涨幅超过7%的股票
+    # TODO: 计算涨幅超过5%的股票
     percent_7_rise = data_cumulative_rank.groupby('industry_name')['percent_7_rise'].sum()
     data_cumulative_rank.to_csv('/Users/flowerhost/securityproject/data/data_rps.csv')
 
