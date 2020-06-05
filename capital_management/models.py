@@ -100,6 +100,7 @@ class TradeLists(models.Model):
         (u'S', u'普通卖出'),
         (u'R', u'融资买入'),
         (u'T', u'融券卖出'),
+        (u'P', u'送配股')
     )
     flag = models.CharField(max_length=20, verbose_name='操作方向', choices=OPERATION_CHOICE)
     # 基础数据
@@ -401,6 +402,7 @@ class CumulativeRank(models.Model):
     rps = models.FloatField(verbose_name='RPS')
     smr = models.FloatField(verbose_name='SMR')
     eps_stability = models.FloatField(verbose_name='收益稳定性')
+    roe = models.FloatField(verbose_name='年度ROE')
     decline_range = models.FloatField(verbose_name='250日降幅')
     volume_ratio = models.FloatField(verbose_name='成交量比')
     index_code = models.CharField(max_length=20, verbose_name='行业代码')
@@ -437,7 +439,7 @@ class MonitorIndustry(models.Model):
     industry_7_rps = models.FloatField(verbose_name='7个月强度RPS')
 
     date = models.DateField(verbose_name='更新日期', default=timezone.now())
-
+    stock_totality = models.FloatField(verbose_name='行业股票数量')
     new_high_flag = models.FloatField(verbose_name='新高数量')
     percent_7_rise = models.FloatField(verbose_name='涨幅超过7%')
 

@@ -669,11 +669,20 @@ def balance(request):
     # 3、数据切片，完成个股eps标准差计算，评估每股收益稳定性。
     df = df.groupby('ts_code').filter(lambda g: g.ts_code.count() > 12)
     eps_stability = df.groupby('ts_code')['basic_eps_yoy'].std().rank(ascending=True)  # 按照季报收益稳定性进行排名。值越小越稳定。
-
+    df.to_csv('/Users/flowerhost/securityproject/data/data_roe.csv')
     # 4、取每组第一个值求和smr,并排名。
     smr = df.groupby('ts_code', as_index=False)[
         'roe', 'dt_netprofit_yoy', 'q_sales_yoy', 'grossprofit_margin', 'end_date', 'ann_date'].first()
     smr['smr'] = smr.iloc[:, 1:5].sum(axis=1).rank(ascending=True)
+    # 取年报roe数据.
+    this_year_start = datetime.datetime(datetime.datetime.now().year, 1, 1)
+    last_year_end = this_year_start - datetime.timedelta(days=1)
+    report_date = datetime.datetime.strftime(last_year_end, '%Y%m%d')
+    print("年报日期：", report_date)
+    roe = df[['ts_code', 'end_date', 'roe']]
+    roe['flag'] = roe.apply(lambda x: 1 if x['end_date'] == report_date else None, axis=1)
+    roe = roe[roe['flag'].notna()]
+    roe = roe[['ts_code', 'roe']]
 
     # 5、数据联结组合。
     data_join = pd.merge(eps_stability, smr, on='ts_code')
@@ -681,6 +690,7 @@ def balance(request):
     x = data_join['ts_code'].count()
     data_join['smr'] = round(100 * data_join['smr'] / x, 1)
     data_join['eps_stability'] = round(100 * data_join['basic_eps_yoy'] / x, 1)
+    data_join = pd.merge(data_join, roe, on='ts_code')
 
     # 7、eps排名，计算公式：最新两季度季报权重1.5，三年年报权重1.0，求5者之和eps。
     data_quarter_new = df.groupby('ts_code')['ts_code', 'basic_eps_yoy'].head(1)
@@ -697,8 +707,9 @@ def balance(request):
     eps_smr_stability = pd.merge(data_join, data_year, on='ts_code')
     eps_smr_stability = pd.merge(eps_smr_stability, data_quarter_new, on='ts_code')
     eps_smr_stability['eps'] = round(100 * eps_smr_stability['eps'] / x, 1)
-    eps_smr_stability = eps_smr_stability[['ts_code', 'new_quarter_eps', 'eps', 'smr', 'eps_stability', 'end_date',
-                                           'ann_date']]
+    eps_smr_stability = eps_smr_stability[['ts_code', 'new_quarter_eps', 'eps', 'smr', 'eps_stability', 'roe_y',
+                                           'end_date', 'ann_date']]
+    eps_smr_stability.rename(columns={'roe_y': 'roe'}, inplace=True)
 
     # rps强度计算
     # 9、获取交易日期,取最新的交易日，推算出前250日的日期。
@@ -857,7 +868,6 @@ def balance(request):
     l3_year_rps['industry_year_rps'] = l3_year_rps.apply(
         lambda m: (m['close_y'] - m['close_x']) / m['close_x'], axis=1).rank(ascending=True)
     l3_year_rps['industry_year_rank'] = round(100 * l3_year_rps['industry_year_rps'] / member_count, 1)
-    # l3_year_rps['change_year'] =
     l3_year_rps = l3_year_rps[['index_code', 'industry_year_rank', 'industry_year_rps']]
 
     # 3周板块强度
@@ -896,7 +906,6 @@ def balance(request):
     total_industry_rps = pd.merge(total_industry_rps, l3_6_weeks_rps, on='index_code')
     total_industry_rps = pd.merge(total_industry_rps, l3_7_months_rps, on='index_code')
     total_industry_rps['date'] = datetime.datetime.strptime(daily_end_date, "%Y%m%d").date()
-    total_industry_rps.to_csv('/Users/flowerhost/securityproject/data/total.csv')
 
     # 个股与行业指数L3相关联
     industry_member = pd.DataFrame()
@@ -907,6 +916,9 @@ def balance(request):
     industry_member['ts_code'] = industry_member['con_code']
     l3_rps = pd.merge(industry_member, l3_rps, on='index_code')
     l3_rps = l3_rps[['ts_code', 'index_code', 'industry_name', 'industry_rps']]
+    l3_stock_totality = l3_rps.groupby('index_code')['ts_code'].count()
+    total_industry_rps = pd.merge(total_industry_rps, l3_stock_totality, on='index_code')
+    total_industry_rps.rename(columns={'ts_code': 'stock_totality'}, inplace=True)
 
     """行业板块强度监控数据处理
         1、计算行业板块强度，并取前20名和后20名，计算周期：本周、3周、6周和7个月（28周）
@@ -992,29 +1004,14 @@ def balance(request):
     new_high = data_cumulative_rank.groupby('industry_name')['new_high_flag'].sum()
     # TODO: 计算涨幅超过5%的股票
     percent_7_rise = data_cumulative_rank.groupby('industry_name')['percent_7_rise'].sum()
-    data_cumulative_rank.to_csv('/Users/flowerhost/securityproject/data/data_rps.csv')
 
     data_cumulative_rank = data_cumulative_rank[
-        ['code', 'cumulative_rank', 'new_quarter_eps', 'eps', 'rps', 'smr', 'eps_stability', 'decline_range',
+        ['code', 'cumulative_rank', 'new_quarter_eps', 'eps', 'rps', 'smr', 'eps_stability', 'roe', 'decline_range',
          'volume_ratio', 'index_code', 'industry_name', 'industry_rps', 'period_date', 'ann_date', 'hk_hold', 'pct_chg']]
 
-    # 行业强度监控数据和个股聚合 TODO:
-    # industry_monitor = pd.merge(total_industry_rps, data_cumulative_rank, on='index_code')
-    # industry_monitor['industry_name'] = industry_monitor['industry_name_x']
+    # 行业强度监控数据和个股聚合。
     total_industry_rps = pd.merge(total_industry_rps, new_high, on='industry_name')
     total_industry_rps = pd.merge(total_industry_rps, percent_7_rise, on='industry_name')
-    # industry_monitor['industry_name'] = industry_monitor['industry_name_x']
-    # industry_monitor.to_csv('/Users/flowerhost/securityproject/data/new_high.csv')
-    # industry_monitor = industry_monitor[['index_code', 'industry_name', 'industry_base_rank', 'industry_base_rps',
-    #                                      'industry_front_rank', 'industry_front_rps', 'industry_year_rank',
-    #                                      'industry_year_rps', 'industry_week_rank', 'industry_week_rps',
-    #                                      'industry_3_rank', 'industry_3_rps', 'industry_6_rank', 'industry_6_rps',
-    #                                      'industry_7_rank', 'industry_7_rps', 'code', 'cumulative_rank',
-    #                                      'new_quarter_eps', 'eps', 'rps', 'smr', 'eps_stability', 'decline_range',
-    #                                      'volume_ratio', 'period_date', 'ann_date']]
-
-    # industry_monitor.to_csv('/Users/flowerhost/securityproject/data/monitor.csv')
-
     # 15、写数据库
     con = sqlite3.connect('/Users/flowerhost/securityproject/db.sqlite3')
     data_cumulative_rank.to_sql("capital_management_cumulativerank", con, if_exists="replace", index=False)
@@ -1074,9 +1071,11 @@ def capital_manage(request):
             cal = pro.query('trade_cal', start_date=gain_loss_date.strftime("%Y%m%d"),
                             end_date=cal_date[0], is_open=1, fields=['cal_date'])
             stop_loss_data = ts.pro_bar(ts_code=stock_code, adj='qfq', start_date=cal['cal_date'].values[-11],
-                                        end_date=cal['cal_date'].values[-1], ma=[10])
+                                        end_date=cal_date[0], ma=[10])
+
             stop_loss_data = stop_loss_data.sort_values(by=['trade_date'], ascending=[True])
             stop_loss_data = stop_loss_data[['trade_date', 'low', 'close', 'ma10']].values.tolist()
+
             # 比较前一交易日的最低价
             for i in range(day_count):
                 if i == 0:
@@ -1096,6 +1095,8 @@ def capital_manage(request):
                 result = ma10
             else:
                 result = round((stop_loss_data[-2][1] - 3 * sum_values / count_number), 2)
+                count_number = 0  # 避免该变量无限循环相加
+                sum_values = 0  # 避免该变量无限循环相加
 
             if CapitalManagement.objects.exists():
                 last_loss_date = cal['cal_date'].values[-2]
@@ -1110,7 +1111,6 @@ def capital_manage(request):
                 last_loss = 0
             # 比较前一交易日的止损点，取大值，避免止损点下滑, 如果跌破买入价的8%则无条件止损，表明买点不好。
             stop_loss = round(max(result, last_loss, buy * 0.92), 2)
-
             stock_close = stop_loss_data[-1][2]
             if buy > 0:
                 gain_loss_rate = round(100 * (stock_close - buy) / buy, 2)
@@ -1122,6 +1122,7 @@ def capital_manage(request):
             current_id = AccountSurplus.objects.get(date=date_cursor).id
             if current_id == 1:
                 check_month = current_month
+
             else:
                 check_month = AccountSurplus.objects.get(id=current_id - 1).date.month
 
@@ -1139,7 +1140,7 @@ def capital_manage(request):
             if CapitalManagement.objects.exists():
                 # 计算月初第一个交易日风险敞口，每月第一天完成资金账户进出转账更新。
                 if check_month < current_month:
-                    current_month_risk = round(assets * 0.06, 2)
+                    current_month_risk = round(AccountSurplus.objects.get(id=current_id-1).total_assets * 0.06, 2)
                 else:
                     current_month_risk = CapitalManagement.objects.last().month_risk_6
                 # 避免数据重复
@@ -1191,16 +1192,16 @@ def monitor(request):
 
     """
     # 页面展示
-    industry_ranks = MonitorIndustry.objects.values(
+    industry_ranks = MonitorIndustry.objects.filter(stock_totality__gt=3).values(
         'industry_name', 'industry_week_rank', 'industry_3_rank', 'industry_6_rank', 'industry_7_rank',
-        'date', 'new_high_flag', 'percent_7_rise').order_by('-new_high_flag')
+        'date', 'stock_totality', 'new_high_flag', 'percent_7_rise').order_by('-new_high_flag')
     return render(request, 'capital_management/monitor.html', locals())
 
 
 def evaluate(request):
     """全市场综合排名"""
     # 页面展示
-    cumulative_ranks = CumulativeRank.objects.filter().values(
+    cumulative_ranks = CumulativeRank.objects.filter(roe__gt=15, decline_range__gt=-35).values(
         'code', 'eps', 'eps_stability', 'smr', 'period_date', 'rps', 'cumulative_rank', 'decline_range', 'volume_ratio',
         'ann_date', 'new_quarter_eps', 'industry_name', 'industry_rps', 'hk_hold', 'pct_chg').order_by('-cumulative_rank')
 
