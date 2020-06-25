@@ -223,18 +223,20 @@ pro = ts.pro_api()
 # r = data_rps['industry_rps'].std()
 # print(r)
 """apply 函数使用"""
-from dateutil.relativedelta import relativedelta
-data = pd.read_csv('/Users/flowerhost/securityproject/data/data_roe.csv')
-end_date = datetime.date.today()
-last_year = end_date - relativedelta(years=1)
-this_year_start = datetime.datetime(datetime.datetime.now().year, 1, 1)
-last_year_end = this_year_start - datetime.timedelta(days=1)
-end_date = datetime.datetime.strftime(last_year_end, '%Y%m%d')
-print(end_date)
-
-roe = data[['ts_code', 'end_date', 'roe']]
-roe['flag'] = data.apply(lambda x: 1 if x['end_date']==int(end_date) else None, axis=1)
-roe = roe[roe['flag'].notna()]
-roe = roe[['ts_code', 'roe']]
-print(roe)
-
+# from dateutil.relativedelta import relativedelta
+# data = pd.read_csv('/Users/flowerhost/securityproject/data/data_roe.csv')
+# end_date = datetime.date.today()
+# last_year = end_date - relativedelta(years=1)
+# this_year_start = datetime.datetime(datetime.datetime.now().year, 1, 1)
+# last_year_end = this_year_start - datetime.timedelta(days=1)
+# end_date = datetime.datetime.strftime(last_year_end, '%Y%m%d')
+# print(end_date)
+#
+# roe = data[['ts_code', 'end_date', 'roe']]
+# roe['flag'] = data.apply(lambda x: 1 if x['end_date']==int(end_date) else None, axis=1)
+# roe = roe[roe['flag'].notna()]
+# roe = roe[['ts_code', 'roe']]
+# print(roe)
+"""业绩预告"""
+data = pro.forecast_vip(period='20200630', ts_code='603218.SH')
+print(data)

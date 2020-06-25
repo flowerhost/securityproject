@@ -1,11 +1,12 @@
 # Create your views here.
+from django.views.generic import ListView
 
 from django.shortcuts import render, redirect
 from .models import TradeLists, TradeDailyReport, CapitalAccount, AccountSurplus, Clearance, TradePerformance, Broker
 from .models import Positions, CapitalManagement, CumulativeRank, MonitorIndustry
 from .form import BrokerForm, TradeListsForm, CapitalAccountForm
 
-from django.db.models import Sum
+from django.db.models import Sum, Q
 
 import sqlite3
 import time
@@ -669,7 +670,6 @@ def balance(request):
     # 3、数据切片，完成个股eps标准差计算，评估每股收益稳定性。
     df = df.groupby('ts_code').filter(lambda g: g.ts_code.count() > 12)
     eps_stability = df.groupby('ts_code')['basic_eps_yoy'].std().rank(ascending=True)  # 按照季报收益稳定性进行排名。值越小越稳定。
-    df.to_csv('/Users/flowerhost/securityproject/data/data_roe.csv')
     # 4、取每组第一个值求和smr,并排名。
     smr = df.groupby('ts_code', as_index=False)[
         'roe', 'dt_netprofit_yoy', 'q_sales_yoy', 'grossprofit_margin', 'end_date', 'ann_date'].first()
@@ -702,13 +702,18 @@ def balance(request):
     data_year = data_year[['end_date', 'ts_code', 'basic_eps_yoy']].groupby('ts_code').sum()
     data_year = pd.merge(data_quarter, data_year, on='ts_code')
     data_year['eps'] = data_year.iloc[:, 1:3].sum(axis=1).rank(ascending=True)
+    # 最新的业绩预告数据
+    forecast = pro.forecast_vip(period='20200630', fields='ts_code, type, p_change_min, p_change_max')
+
+    data_year = pd.merge(data_year, forecast, how='left', on='ts_code')
+    data_year.rename(columns={'type': 'forecast'}, inplace=True)
 
     # 8、数据联合
     eps_smr_stability = pd.merge(data_join, data_year, on='ts_code')
     eps_smr_stability = pd.merge(eps_smr_stability, data_quarter_new, on='ts_code')
     eps_smr_stability['eps'] = round(100 * eps_smr_stability['eps'] / x, 1)
     eps_smr_stability = eps_smr_stability[['ts_code', 'new_quarter_eps', 'eps', 'smr', 'eps_stability', 'roe_y',
-                                           'end_date', 'ann_date']]
+                                           'end_date', 'ann_date', 'forecast', 'p_change_min', 'p_change_max']]
     eps_smr_stability.rename(columns={'roe_y': 'roe'}, inplace=True)
 
     # rps强度计算
@@ -722,7 +727,7 @@ def balance(request):
                            end_date=end_date.strftime("%Y%m%d"), is_open=1, fields=['cal_date'])
 
     # 判断时间，当前提取时间18：00以后，取当日数据，否则取前一日数据。
-    check_time = datetime.datetime.strptime(str(datetime.date.today()) + '17:00', '%Y-%m-%d%H:%M')
+    check_time = datetime.datetime.strptime(str(datetime.date.today()) + '18:00', '%Y-%m-%d%H:%M')
     now_time = datetime.datetime.now()
     if now_time > check_time:
         daily_end_date = trade_date.tail(1)['cal_date'].values[0]
@@ -796,7 +801,7 @@ def balance(request):
     data_rps = pd.merge(df_history, df_current, on='ts_code')
 
     # 获得最新的港股通持股比例 如果当日23：00提取数据，只能提取前一天沪港通数据
-    check_hk_time = datetime.datetime.strptime(str(datetime.date.today()) + '23:00', '%Y-%m-%d%H:%M')
+    check_hk_time = datetime.datetime.strptime(str(datetime.date.today()) + '22:00', '%Y-%m-%d%H:%M')
     if now_time > check_hk_time:
         hk_date = front_date
     else:
@@ -822,6 +827,7 @@ def balance(request):
     l3_7_months = pro.sw_daily(trade_date=industry_7_months)
     print(week_first_date, daily_end_date, last_year_date, new_year_date, front_date, industry_3_weeks,
           industry_6_weeks, hk_date)
+    print("industry_1_week:", industry_1_weeks)
 
     # 20日板块强度
     l3_rps = pd.merge(l3_20_days, l3_current, on='ts_code')
@@ -1005,9 +1011,14 @@ def balance(request):
     # TODO: 计算涨幅超过5%的股票
     percent_7_rise = data_cumulative_rank.groupby('industry_name')['percent_7_rise'].sum()
 
+
+    # 获取股票名称
+    symobl_name = pro.query('stock_basic', exchange='', list_status='L', fields='ts_code, name')
+    data_cumulative_rank = pd.merge(data_cumulative_rank, symobl_name, on='ts_code')
     data_cumulative_rank = data_cumulative_rank[
-        ['code', 'cumulative_rank', 'new_quarter_eps', 'eps', 'rps', 'smr', 'eps_stability', 'roe', 'decline_range',
-         'volume_ratio', 'index_code', 'industry_name', 'industry_rps', 'period_date', 'ann_date', 'hk_hold', 'pct_chg']]
+        ['code', 'name', 'cumulative_rank', 'new_quarter_eps', 'eps', 'rps', 'smr', 'eps_stability', 'roe', 'decline_range',
+         'volume_ratio', 'index_code', 'industry_name', 'industry_rps', 'period_date', 'ann_date', 'hk_hold', 'pct_chg',
+         'forecast', 'p_change_min', 'p_change_max']]
 
     # 行业强度监控数据和个股聚合。
     total_industry_rps = pd.merge(total_industry_rps, new_high, on='industry_name')
@@ -1193,8 +1204,8 @@ def monitor(request):
     """
     # 页面展示
     industry_ranks = MonitorIndustry.objects.filter(stock_totality__gt=3).values(
-        'industry_name', 'industry_week_rank', 'industry_3_rank', 'industry_6_rank', 'industry_7_rank',
-        'date', 'stock_totality', 'new_high_flag', 'percent_7_rise').order_by('-new_high_flag')
+        'index_code', 'industry_name', 'industry_week_rank', 'industry_3_rank', 'industry_6_rank', 'industry_7_rank',
+        'date', 'stock_totality', 'new_high_flag', 'percent_7_rise').order_by('-industry_week_rank')
     return render(request, 'capital_management/monitor.html', locals())
 
 
@@ -1202,8 +1213,30 @@ def evaluate(request):
     """全市场综合排名"""
     # 页面展示
     cumulative_ranks = CumulativeRank.objects.filter(roe__gt=15, decline_range__gt=-35).values(
-        'code', 'eps', 'eps_stability', 'smr', 'period_date', 'rps', 'cumulative_rank', 'decline_range', 'volume_ratio',
-        'ann_date', 'new_quarter_eps', 'industry_name', 'industry_rps', 'hk_hold', 'pct_chg').order_by('-cumulative_rank')
+        'code', 'name', 'eps', 'eps_stability', 'smr', 'period_date', 'rps', 'cumulative_rank', 'decline_range', 'volume_ratio',
+        'ann_date', 'new_quarter_eps', 'industry_name', 'industry_rps', 'hk_hold', 'pct_chg', 'p_change_min',
+        'p_change_max', 'forecast').order_by('-cumulative_rank')
 
     return render(request, 'capital_management/evaluate.html', locals())
+
+
+def monitor_detail(request):
+    """行业板块强度细化"""
+    index_code = request.GET.get('index_code')
+    cumulative_ranks = CumulativeRank.objects.filter(index_code=index_code, roe__gt=15, cumulative_rank__gt=79).values(
+        'code', 'name', 'eps', 'eps_stability', 'smr', 'period_date', 'rps', 'cumulative_rank', 'decline_range', 'volume_ratio',
+        'ann_date', 'new_quarter_eps', 'industry_name', 'industry_rps', 'hk_hold', 'pct_chg', 'p_change_min',
+        'p_change_max', 'forecast').order_by('-pct_chg')
+    return render(request, 'capital_management/evaluate.html', locals())
+
+
+def management_detail(request):
+    """ 持仓股票变动细化"""
+    stock_name = request.GET.get('stock_name')
+    stocks = TradeLists.objects.filter(name=stock_name).values(
+        'code', 'name', 'price', 'flag', 'date', 'trade_resource', 'quantity', 'total_capital',
+        'account__name', 'tradeperformance__close', 'tradeperformance__moving_average',
+        'tradeperformance__performance', 'tradeperformance__trade_performance').order_by('-date')
+
+    return render(request, 'capital_management/index.html', locals())
 

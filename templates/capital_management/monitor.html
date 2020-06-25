@@ -74,7 +74,9 @@
 
                             <td class="text-red bg-success">{{ industry.industry_name }}</td>
                             <td class="text-red bg-success">{{ industry.stock_totality }}</td>
-                            <td class="text-red bg-success">{{ industry.new_high_flag }}</td>
+                            <td class="text-red bg-success">
+                                <a href="{% url 'capital_management:monitor_detail'  %}?index_code={{ industry.index_code }}">{{ industry.new_high_flag }} </a>
+                            </td>
                             <td class="text-red bg-success">{{ industry.percent_7_rise }}</td>
 
                             <td class="text-red bg-success">{{ industry.date }}</td>
@@ -117,6 +119,7 @@
              "ordering"    : true,       <!-- 允许排序 -->
              "info"        : true,       <!-- 显示信息 -->
              "autoWidth"   : true,       <!-- 固定宽度 -->
+             "iDisplayLength": 25,       <!-- 默认显示条数 -->
 
 
 

@@ -83,15 +83,23 @@
                       {% endif %}
                       {% if management.buy < management.stop_loss %}
                           {% if management.stock_close < management.stop_loss %}
-                                <td class="text-yellow  line_through bg-danger">{{ management.stock_name }}</td>
+                               <td class="text-yellow  line_through bg-danger">
+                                    <a href="{% url 'capital_management:management_detail'  %}?stock_name={{ management.stock_name }}">{{ management.stock_name }} </a>
+                               </td>
                           {% else %}
-                                <td class="text-red bg-success">{{ management.stock_name }}</td>
+                                <td class="text-red bg-success">
+                                    <a href="{% url 'capital_management:management_detail'  %}?stock_name={{ management.stock_name }}">{{ management.stock_name }} </a>
+                                </td>
                           {% endif %}
                       {% else %}
                           {% if management.stock_close < management.stop_loss %}
-                                <td class="text-yellow line_through bg-danger">{{ management.stock_name }}</td>
+                              <td class="text-yellow line_through bg-danger">
+                                    <a href="{% url 'capital_management:management_detail'  %}?stock_name={{ management.stock_name }}">{{ management.stock_name }} </a>
+                              </td>
                           {% else %}
-                                <td class="text-blue bg-danger">{{ management.stock_name }}</td>
+                              <td class="text-blue bg-danger">
+                                    <a href="{% url 'capital_management:management_detail'  %}?stock_name={{ management.stock_name }}">{{ management.stock_name }} </a>
+                              </td>
                           {% endif %}
                       {% endif %}
                       {% if management.buy < management.stop_loss %}

@@ -395,6 +395,7 @@ class RelativePriceStrength(models.Model):
 class CumulativeRank(models.Model):
     """个股全市场综合排名"""
     code = models.CharField(max_length=10, verbose_name='股票代码')
+    name = models.CharField(max_length=40, verbose_name=' 股票名称')
 
     cumulative_rank = models.FloatField(verbose_name='综合排名')
     new_quarter_eps = models.FloatField(verbose_name='最新季度EPS')
@@ -413,6 +414,10 @@ class CumulativeRank(models.Model):
 
     hk_hold = models.FloatField(verbose_name='港股通持仓比')
     pct_chg = models.FloatField(verbose_name='当日涨幅')
+
+    forecast = models.CharField(max_length=40, verbose_name='预告类型')
+    p_change_min = models.FloatField(verbose_name='最低限值')
+    p_change_max = models.FloatField(verbose_name='最高限值')
 
     class Meta:
         verbose_name = '全市场综合排名'

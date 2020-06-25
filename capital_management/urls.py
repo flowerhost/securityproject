@@ -1,6 +1,6 @@
 """定义capital_management的URL模式"""
 
-from django.urls import path
+from django.urls import path, re_path
 
 from . import views
 
@@ -29,4 +29,8 @@ urlpatterns = [
     path('evaluate/', views.evaluate, name='evaluate'),
     # 行业强度监控
     path('monitor/', views.monitor, name='monitor'),
+    # 行业强度详细清单
+    path('monitor_detail/', views.monitor_detail, name='monitor_detail'),
+    # 持仓变化细节
+    path('management_detail/', views.management_detail, name='management_detail'),
 ]

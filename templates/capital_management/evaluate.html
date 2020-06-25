@@ -48,19 +48,22 @@
                         <th>序号</th>
                         <th>综合得分</th>
                         <th>股票代码</th>
+                        <th>股票名称</th>
                         <th>最新季度增长率（EPS）</th>
                         <th>EPS综合得分</th>
                         <th>RPS强度得分</th>
                         <th>SMR综合得分</th>
                         <th>PE收益稳定性</th>
-                        <th>52周高点降幅(%)</th>
+                        <th>年高点降幅(%)</th>
                         <th>成交量比</th>
                         <th>行业板块</th>
                         <th>20日行业强度(RPS)</th>
-                        <th>港股通持股占比(%)</th>
+                        <th>港股通持股(%)</th>
                         <th>当日涨幅(%)</th>
                         <th>公告日期</th>
-                        <th>最新报告期</th>
+                        <th>最新业绩预告</th>
+                        <th>最低增幅</th>
+                        <th>最高增幅</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -84,7 +87,13 @@
                             <td class="text-blue bg-danger">{{ cumulation.code }}</td>
                         {% endif %}
 
-                         {% if cumulation.eps_stability < 30 %}
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.name }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.name }}</td>
+                        {% endif %}
+
+                        {% if cumulation.eps_stability < 30 %}
                             <td class="text-red bg-success">{{ cumulation.new_quarter_eps }}</td>
                         {% else %}
                             <td class="text-blue bg-danger">{{ cumulation.new_quarter_eps }}</td>
@@ -158,16 +167,29 @@
                         {% endif %}
 
                         {% if cumulation.eps_stability < 30 %}
-                            <td class="text-red bg-success">{{ cumulation.ann_date }}</td>
-                        {% else %}
-                            <td class="text-blue bg-danger">{{ cumulation.ann_date }}</td>
-                        {% endif %}
-
-                        {% if cumulation.eps_stability < 30 %}
                             <td class="text-red bg-success">{{ cumulation.period_date }}</td>
                         {% else %}
                             <td class="text-blue bg-danger">{{ cumulation.period_date }}</td>
                         {% endif %}
+
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.forecast }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.forecast }}</td>
+                        {% endif %}
+
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.p_change_min }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.p_change_min }}</td>
+                        {% endif %}
+
+                        {% if cumulation.eps_stability < 30 %}
+                            <td class="text-red bg-success">{{ cumulation.p_change_max }}</td>
+                        {% else %}
+                            <td class="text-blue bg-danger">{{ cumulation.p_change_max }}</td>
+                        {% endif %}
+
 
                   </tr>
                   {% empty %}
@@ -207,7 +229,7 @@
              "ordering"    : true,       <!-- 允许排序 -->
              "info"        : true,       <!-- 显示信息 -->
              "autoWidth"   : true,       <!-- 固定宽度 -->
-
+             "iDisplayLength": 50,       <!-- 默认显示条数 -->
 
 
              "pagingType"  : "full_numbers",  <!-- 显示尾页和首页 -->
