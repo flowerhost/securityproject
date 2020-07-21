@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}仪表盘{% endblock %}
+{% block css %}{% endblock %}
+
+{% block breadcrumb %}
+    <!-- Content Header (Page header) -->
+    <section class="content-header" xmlns="http://www.w3.org/1999/html">
+      <h1>
+        <small>均线分析</small>
+      </h1>
+      <ol class="breadcrumb">
+        <li><a href="#"><i class="fa fa-dashboard"></i> 主页</a></li>
+        <li class="active">个股分析</li>
+      </ol>
+    </section>
+{% endblock %}
+
+{% block content %}
+   <div class="col-md-12">
+
+    <!-- BAR CHART -->
+      <div class="box box-success">
+        <div class="box-header with-border">
+          <h3 class="box-title">
+               <form action="" method="get">
+            {{ form.errors }}
+            <input type="text" name="stock_code", id="code">
+            <input id="submit1" type="submit" value="查询">
+            <p style="color: red">{{ error_msg }}</p>
+                </form>
+          </h3>
+
+          <div class="box-tools pull-right">
+            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i>
+            </button>
+            <button type="button" class="btn btn-box-tool" data-widget="remove"><i class="fa fa-times"></i></button>
+          </div>
+        </div>
+        <div class="box-body">
+            <div id="line" style="width:1100px;height:600px;"></div>
+        </div>
+        <!-- /.box-body -->
+      </div>
+   </div>
+{% endblock %}
+
+{% block script %}
+<script type="text/javascript" src="{% static 'AdminLTE-2.4.10/bower_components/echarts/dist/echarts.min.js' %}"></script>
+
+<script type="text/javascript">
+
+var chart = echarts.init(document.getElementById('line'), 'white', {renderer: 'canvas'});
+
+        $(
+            function () {
+                fetchData(chart);
+            }
+        );
+
+        function fetchData() {
+            $.ajax({
+                type: "GET",
+                url: "http://127.0.0.1:8000/index/line",
+                dataType: 'json',
+                success: function (result) {
+                    chart.setOption(result.data);
+                }
+            });
+        }
+</script>
+
+{% endblock %}

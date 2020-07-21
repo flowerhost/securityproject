@@ -100,7 +100,8 @@ class TradeLists(models.Model):
         (u'S', u'普通卖出'),
         (u'R', u'融资买入'),
         (u'T', u'融券卖出'),
-        (u'P', u'送配股')
+        (u'P', u'送配股'),
+        (u'Bingo', u'新股中签')
     )
     flag = models.CharField(max_length=20, verbose_name='操作方向', choices=OPERATION_CHOICE)
     # 基础数据

@@ -238,5 +238,42 @@ pro = ts.pro_api()
 # roe = roe[['ts_code', 'roe']]
 # print(roe)
 """业绩预告"""
-data = pro.forecast_vip(period='20200630', ts_code='603218.SH')
-print(data)
+# data = pro.forecast_vip(period='20200630', ts_code='603218.SH')
+# print(data)
+"""MACD线"""
+# import talib
+# from pyecharts.charts import Bar
+# from pyecharts import options as opts
+# import numpy as np
+# df = ts.pro_bar(ts_code='000001.SZ', adj='qfq', start_date='20200101', end_date='20200623', ma=[5, 10, 20, 50])
+# df = df.sort_values(by=['trade_date'], ascending=[True])
+# close = [float(x) for x in df['close']]
+# df['EMA12'] = talib.EMA(np.array(close), timeperiod=10)
+# df['EMA26'] = talib.EMA(np.array(close), timeperiod=20)
+# df['DIFF'], df['DEA'], df['MACD'] = talib.MACDEXT(np.array(close), fastperiod=12, fastmatype=1, slowperiod=26, slowmatype=1, signalperiod=9, signalmatype=1)
+# df['MACD'] = round(df['MACD']*2, 2)
+# df['DIFF'] = round(df['DIFF'], 2)
+# df['DEA'] = round(df['DEA'], 2)
+# df = df[['trade_date', 'open', 'close', 'low', 'high', 'amount', 'ma5', 'ma10', 'ma20', 'ma50', 'MACD', 'DIFF', 'DEA']].values.tolist()
+df = ts.pro_bar(ts_code='002271.SZ', adj='qfq', start_date='20170101', end_date='20200720', ma=[5, 10, 20, 50])
+df = df.sort_values(by=['trade_date'], ascending=[True])
+df = df[['trade_date', 'low']]
+df = df.set_index('trade_date', drop=True)
+df['differ'] = df.diff(axis=0)
+df.loc[df['differ'] > 0, 'differ'] = 0
+df = df.sort_values(by=['trade_date'], ascending=[False])
+print(df['low'][0])
+df['stop_loss'] = df['low'][0]
+print(df.count()[0])
+i = 0
+while i < df.count()[0]-10:
+    data = df.iloc[i:10+i]
+    count1 = data['differ'].value_counts()[0]
+    # print("计数", count1)
+    # print("i", i)
+    df.iloc[i]['stop_loss'] = round(data['differ'].sum()/(10-count1)+df.iloc[i]['low'], 2)
+    i = i + 1
+print(df)
+df = df[['stop_loss']]
+df = df.sort_values(by='trade_date', ascending=True)
+df.to_csv('/Users/flowerhost/securityproject/data/002271_1.csv')

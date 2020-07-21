@@ -23,3 +23,5 @@ tushare==1.2.48
 urllib3==1.24.1
 
 Unidecode~=1.1.1
+pyecharts~=1.8.1
+TA-Lib~= 0.4.18

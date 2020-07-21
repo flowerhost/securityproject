@@ -22,7 +22,9 @@ urlpatterns = [
     #  系统结算功能
     path('balance/', views.balance, name='balance'),
     # 个股均线功能
-    path('line/', views.line, name='line'),
+    # path('line/', views.line, name='line'),
+    path('line/', views.ChartView.as_view(), name='line'),
+    path('demo/', views.IndexView.as_view(), name='line'),
     # 风险敞口
     path('capital_management/', views.capital_manage, name='capital_management'),
     # 基本面评价

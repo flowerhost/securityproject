@@ -1,5 +1,4 @@
 # Create your views here.
-from django.views.generic import ListView
 
 from django.shortcuts import render, redirect
 from .models import TradeLists, TradeDailyReport, CapitalAccount, AccountSurplus, Clearance, TradePerformance, Broker
@@ -12,6 +11,22 @@ import sqlite3
 import time
 import datetime
 import pandas as pd
+import numpy as np
+
+import talib
+
+import json
+from django.http import HttpResponse
+from rest_framework.views import APIView
+from django.template import loader, RequestContext
+from random import randrange
+
+from typing import List, Sequence, Union
+
+from pyecharts.charts import Kline, Line, Bar, Grid
+from pyecharts import options as opts
+from pyecharts.commons.utils import JsCode
+
 
 """tushare类数据接口"""
 import tushare as ts
@@ -570,6 +585,8 @@ def balance(request):
                     p_flag = True
                 elif performance_flag == 'R':
                     p_flag = True
+                elif performance_flag == 'Bingo':
+                    p_flag = False
                 else:
                     p_flag = False
 
@@ -585,7 +602,12 @@ def balance(request):
                         close = query_result['close'][0]
                         high_price = query_result['high'].values[0]
                         low_price = query_result['low'].values[0]
-                        moving_average = round(query_result['ma10'].values[0], 2)
+                        print(query_result['ma10'][0])
+                        if np.isnan(query_result['ma10'][0]):
+                            moving_average = close
+                        else:
+                            moving_average = round(query_result['ma10'].values[0], 2)
+
                         boll_up = round(moving_average * 1.09, 2)
                         boll_down = round(moving_average * 0.91, 2)
 
@@ -1059,6 +1081,7 @@ def capital_manage(request):
     count_number = 0
     gain_loss = {}
     ma10 = 0
+    result = 0
     for _ in range(3):
 
         try:
@@ -1088,26 +1111,34 @@ def capital_manage(request):
             stop_loss_data = stop_loss_data[['trade_date', 'low', 'close', 'ma10']].values.tolist()
 
             # 比较前一交易日的最低价
-            for i in range(day_count):
-                if i == 0:
-                    pass
-                else:
-                    latest_low = stop_loss_data[i][1]
-                    for j in range(2):
-                        early_low = stop_loss_data[i - j][1]
-                        if early_low > latest_low:
-                            count_number = count_number + 1
-                            sum_values = sum_values + early_low - latest_low
-                        else:
-                            # 极特殊情况，健帆生物20200414。个股强力拉升不回调，除0错误。
-                            ma10 = stop_loss_data[i][3]
-
-            if count_number == 0:
-                result = ma10
+            check_flag = TradeLists.objects.filter(code=stock_code).latest().flag
+            print(stock_code, check_flag)
+            print(stop_loss_data[-1][2])
+            if check_flag == 'Bingo':
+                result = stop_loss_data[-1][2]
+                ma10 = stop_loss_data[-1][2]
             else:
-                result = round((stop_loss_data[-2][1] - 3 * sum_values / count_number), 2)
-                count_number = 0  # 避免该变量无限循环相加
-                sum_values = 0  # 避免该变量无限循环相加
+
+                for i in range(day_count):
+                    if i == 0:
+                        pass
+                    else:
+                        latest_low = stop_loss_data[i][1]
+                        for j in range(2):
+                            early_low = stop_loss_data[i - j][1]
+                            if early_low > latest_low:
+                                count_number = count_number + 1
+                                sum_values = sum_values + early_low - latest_low
+                            else:
+                                # 极特殊情况，健帆生物20200414。个股强力拉升不回调，除0错误。
+                                ma10 = stop_loss_data[i][3]
+
+                if count_number == 0:
+                    result = ma10
+                else:
+                    result = round((stop_loss_data[-2][1] - 3 * sum_values / count_number), 2)
+                    count_number = 0  # 避免该变量无限循环相加
+                    sum_values = 0  # 避免该变量无限循环相加
 
             if CapitalManagement.objects.exists():
                 last_loss_date = cal['cal_date'].values[-2]
@@ -1192,6 +1223,373 @@ def capital_manage(request):
     return render(request, 'capital_management/management.html', locals())
 
 
+def fetch_data(stock_code):
+    """抽取tushare数据"""
+    query_date = datetime.date.today()
+    start_query_date = query_date - datetime.timedelta(weeks=200)
+
+    line_data = ts.pro_bar(ts_code=stock_code, freq='D', start_date=start_query_date.strftime("%Y%m%d"),
+                           end_date=query_date.strftime("%Y%m%d"), adj='qfq', ma=[5, 10, 20, 50])
+    origin_data = line_data.sort_values(by=['trade_date'], ascending=[True])
+
+    close = [float(x) for x in origin_data['close']]
+    origin_data['DIFF'], origin_data['DEA'], origin_data['MACD'] = talib.MACDEXT(
+            np.array(close), fastperiod=12, fastmatype=1, slowperiod=26, slowmatype=1, signalperiod=9, signalmatype=1)
+    origin_data['MACD'] = round(origin_data['MACD'] * 2, 2)
+    origin_data['DIFF'] = round(origin_data['DIFF'], 2)
+    origin_data['DEA'] = round(origin_data['DEA'], 2)
+    origin_data = origin_data.tail(100)
+
+    origin_data = origin_data[['trade_date', 'open', 'close', 'low', 'high', 'amount', 'ma5', 'ma10', 'ma20', 'ma50',
+                               'MACD', 'DIFF', 'DEA']].values.tolist()
+
+    return origin_data
+
+
+def split_data(origin_data) -> dict:
+    datas = []
+    times = []
+    vols = []
+    macds = []
+    difs = []
+    deas = []
+    ma5 = []
+    ma10 = []
+    ma20 = []
+    ma50 = []
+
+    for i in range(len(origin_data)):
+        datas.append(origin_data[i][1:])
+        times.append(origin_data[i][0:1][0])
+        vols.append(origin_data[i][5])
+        ma5.append(origin_data[i][6])
+        ma10.append(origin_data[i][7])
+        ma20.append(origin_data[i][8])
+        ma50.append(origin_data[i][9])
+        macds.append(origin_data[i][10])
+        difs.append(origin_data[i][11])
+        deas.append(origin_data[i][12])
+    vols = [int(v) for v in vols]
+
+    return {
+        "datas": datas,
+        "times": times,
+        "vols": vols,
+        "MA5": ma5,
+        "MA10": ma10,
+        "MA20": ma20,
+        "MA50":ma50,
+        "macds": macds,
+        "difs": difs,
+        "deas": deas,
+    }
+
+# def gain_loss(day_count: int):
+#     """计算安全区域止损点"""
+#     result: List[Union[float, str]] = []
+#     for i in range(len(data['times'])):
+#         if i < day_count:
+#             result.append("-")
+#             continue
+#         sum_values = 0.0
+#         count_number = 0
+#         ma10 = 0
+#         stop_loss = data["datas"][i-1][2]
+#
+#         for k in range(day_count):
+#             latest_low = data["datas"][i-k][2]
+#             for j in range(2):
+#                 early_low = data["datas"][i-k-j][2]
+#                 if early_low > latest_low:
+#                     count_number = count_number + 1
+#                     sum_values = sum_values + early_low - latest_low
+#                 else:
+#                     ma10 = data["datas"][i-k][6]
+#
+#         if count_number == 0:
+#             stop_loss = ma10
+#         else:
+#             stop_loss = round((stop_loss - 3 * sum_values / count_number), 2)
+#         result.append(stop_loss)
+#     return result
+#
+
+
+def response_as_json(data):
+    json_str = json.dumps(data)
+    response = HttpResponse(
+        json_str,
+        content_type="application/json",
+    )
+    response["Access-Control-Allow-Origin"] = "*"
+    return response
+
+
+def json_response(data, code=200):
+    data = {
+        "code": code,
+        "msg": "success",
+        "data": data,
+    }
+    return response_as_json(data)
+
+
+def json_error(error_string="error", code=500, **kwargs):
+    data = {
+        "code": code,
+        "msg": error_string,
+        "data": {}
+    }
+    data.update(kwargs)
+    return response_as_json(data)
+
+
+JsonResponse = json_response
+JsonError = json_error
+
+
+def draw_chart(stock_code) ->Grid:
+    origin_data = fetch_data(stock_code)
+    data = split_data(origin_data=origin_data)
+    kline = (
+        Kline()
+        .add_xaxis(xaxis_data=data["times"])
+        .add_yaxis(
+            series_name="",
+            y_axis=data["datas"],
+            itemstyle_opts=opts.ItemStyleOpts(
+                color="red",
+                color0="green",
+                border_color="red",
+                border_color0="green",
+            ),
+            markpoint_opts=opts.MarkPointOpts(
+                data=[
+                    opts.MarkPointItem(type_="max", name="最大值"),
+                    opts.MarkPointItem(type_="min", name="最小值"),
+                ]
+            ),
+        )
+        .set_global_opts(
+            # title_opts=opts.TitleOpts(title="K线周期图表", pos_left="0"),
+            xaxis_opts=opts.AxisOpts(
+                type_="category",
+                is_scale=True,
+                boundary_gap=False,
+                axisline_opts=opts.AxisLineOpts(is_on_zero=False),
+                splitline_opts=opts.SplitLineOpts(is_show=False),
+                split_number=20,
+                min_="dataMin",
+                max_="dataMax",
+            ),
+            yaxis_opts=opts.AxisOpts(
+                is_scale=True, splitline_opts=opts.SplitLineOpts(is_show=True)
+            ),
+            tooltip_opts=opts.TooltipOpts(trigger="axis", axis_pointer_type="cross"),
+            datazoom_opts=[
+                opts.DataZoomOpts(
+                    is_show=False, type_="inside", xaxis_index=[0, 0], range_end=100
+                ),
+                opts.DataZoomOpts(
+                    is_show=True, xaxis_index=[0, 1], pos_top="97%", range_end=100
+                ),
+                opts.DataZoomOpts(is_show=False, xaxis_index=[0, 2], range_end=100),
+            ],
+            # 三个图的 axis 连在一块
+            axispointer_opts=opts.AxisPointerOpts(
+                is_show=True,
+                link=[{"xAxisIndex": "all"}],
+                label=opts.LabelOpts(background_color="#777"),
+            ),
+        )
+    )
+
+    kline_line = (
+        Line()
+        .add_xaxis(xaxis_data=data["times"])
+        .add_yaxis(
+            series_name="MA5",
+            y_axis=data["MA5"],
+            is_smooth=True,
+            is_hover_animation=False,
+            linestyle_opts=opts.LineStyleOpts(width=3, opacity=0.5),
+            label_opts=opts.LabelOpts(is_show=False),
+        )
+        .add_yaxis(
+            series_name="MA10",
+            y_axis=data["MA10"],
+            is_smooth=True,
+            is_hover_animation=False,
+            linestyle_opts=opts.LineStyleOpts(width=3, opacity=0.5),
+            label_opts=opts.LabelOpts(is_show=False),
+        )
+        .add_yaxis(
+            series_name="MA20",
+            y_axis=data["MA20"],
+            is_smooth=True,
+            is_hover_animation=False,
+            linestyle_opts=opts.LineStyleOpts(width=3, opacity=0.5),
+            label_opts=opts.LabelOpts(is_show=False),
+        )
+        .add_yaxis(
+            series_name="MA50",
+            y_axis=data["MA50"],
+            is_smooth=True,
+            is_hover_animation=False,
+            linestyle_opts=opts.LineStyleOpts(width=3, opacity=0.5),
+            label_opts=opts.LabelOpts(is_show=False),
+        )
+        # .add_yaxis(
+        #     series_name=" 止损点",
+        #     y_axis=gain_loss(day_count=10),
+        #     is_smooth=True,
+        #     is_hover_animation=False,
+        #     linestyle_opts=opts.LineStyleOpts(width=3, opacity=0.5),
+        #     label_opts=opts.LabelOpts(is_show=False),
+        # )
+        .set_global_opts(xaxis_opts=opts.AxisOpts(type_="category"))
+    )
+
+    # Overlap Kline + Line
+    overlap_kline_line = kline.overlap(kline_line)
+
+    # Bar-1
+    bar_1 = (
+        Bar()
+        .add_xaxis(xaxis_data=data["times"])
+        .add_yaxis(
+            series_name="Volume",
+            y_axis=data["vols"],
+            xaxis_index=1,
+            yaxis_index=1,
+            label_opts=opts.LabelOpts(is_show=False),
+            # itemstyle_opts=opts.ItemStyleOpts(
+            #     color=JsCode(
+            #         """
+            #     function(params) {
+            #         var colorList;
+            #         if (barData[params.dataIndex][1] > barData[params.dataIndex][0]) {
+            #             colorList = 'red';
+            #         } else {
+            #             colorList = 'green';
+            #         }
+            #         return colorList;
+            #     }
+            #     """
+            #     )
+            # ),
+        )
+        .set_global_opts(
+            xaxis_opts=opts.AxisOpts(
+                type_="category",
+                grid_index=1,
+                axislabel_opts=opts.LabelOpts(is_show=False),
+            ),
+            legend_opts=opts.LegendOpts(is_show=False),
+        )
+    )
+
+    # Bar-2 (Overlap Bar + Line)
+    bar_2 = (
+        Bar()
+        .add_xaxis(xaxis_data=data["times"])
+        .add_yaxis(
+            series_name="MACD",
+            y_axis=data["macds"],
+            xaxis_index=2,
+            yaxis_index=2,
+            label_opts=opts.LabelOpts(is_show=False),
+            itemstyle_opts=opts.ItemStyleOpts(
+                color=JsCode(
+                    """
+                        function(params) {
+                            var colorList;
+                            if (params.data >= 0) {
+                              colorList = 'red';
+                            } else {
+                              colorList = 'green';
+                            }
+                            return colorList;
+                        }
+                        """
+                )
+            ),
+        )
+        .set_global_opts(
+            xaxis_opts=opts.AxisOpts(
+                type_="category",
+                grid_index=2,
+                axislabel_opts=opts.LabelOpts(is_show=False),
+            ),
+            yaxis_opts=opts.AxisOpts(
+                grid_index=2,
+                split_number=4,
+                axisline_opts=opts.AxisLineOpts(is_on_zero=False),
+                axistick_opts=opts.AxisTickOpts(is_show=False),
+                splitline_opts=opts.SplitLineOpts(is_show=False),
+                axislabel_opts=opts.LabelOpts(is_show=True),
+            ),
+            legend_opts=opts.LegendOpts(is_show=False),
+        )
+    )
+
+    line_2 = (
+        Line()
+        .add_xaxis(xaxis_data=data["times"])
+        .add_yaxis(
+            series_name="DIF",
+            y_axis=data["difs"],
+            xaxis_index=2,
+            yaxis_index=2,
+            label_opts=opts.LabelOpts(is_show=False),
+        )
+        .add_yaxis(
+            series_name="DEA",
+            y_axis=data["deas"],
+            xaxis_index=2,
+            yaxis_index=2,
+            label_opts=opts.LabelOpts(is_show=False),
+        )
+        .set_global_opts(legend_opts=opts.LegendOpts(is_show=False))
+    )
+    # 最下面的柱状图和折线图
+    overlap_bar_line = bar_2.overlap(line_2)
+
+    grid_chart = (
+        Grid()
+        .add_js_funcs("var barData = {}".format(data["datas"]))
+        .add(overlap_kline_line, grid_opts=opts.GridOpts(pos_left="3%", pos_right="1%", height="60%"), )
+        .add(bar_1, grid_opts=opts.GridOpts(pos_left="3%", pos_right="1%", pos_top="71%", height="10%"), )
+        .add(overlap_bar_line, grid_opts=opts.GridOpts(pos_left="3%", pos_right="1%", pos_top="82%", height="14%"), )
+        .dump_options_with_quotes()
+    )
+    return grid_chart
+
+
+def bar_base() -> Bar:
+    c = (
+        Bar()
+        .add_xaxis(["衬衫", "羊毛衫", "雪纺衫", "裤子", "高跟鞋", "袜子"])
+        .add_yaxis("商家A", [randrange(0, 100) for _ in range(6)])
+        .add_yaxis("商家B", [randrange(0, 100) for _ in range(6)])
+        .set_global_opts(title_opts=opts.TitleOpts(title="Bar-基本示例", subtitle="我是副标题"))
+        .dump_options_with_quotes()
+    )
+    return c
+
+
+class ChartView(APIView):
+    def get(self, request, *args, **kwargs):
+        print(request.GET.get('code'))
+
+        return JsonResponse(json.loads(draw_chart(stock_code='002876.SZ')))
+
+
+class IndexView(APIView):
+    def get(self, request, *args, **kwargs):
+        return render(request, 'capital_management/line_index.html')
+
+
 def monitor(request):
     """行业强度及板块领头羊前五和后五名监控 2020-04-16
             1、计算行业板块强度，并取前20名和后20名，计算周期：本周、3周、6周和7个月（28周）
@@ -1212,7 +1610,7 @@ def monitor(request):
 def evaluate(request):
     """全市场综合排名"""
     # 页面展示
-    cumulative_ranks = CumulativeRank.objects.filter(roe__gt=15, decline_range__gt=-35).values(
+    cumulative_ranks = CumulativeRank.objects.filter(cumulative_rank__gt=80, roe__gt=15, decline_range__gt=-35, p_change_min__gt=40).values(
         'code', 'name', 'eps', 'eps_stability', 'smr', 'period_date', 'rps', 'cumulative_rank', 'decline_range', 'volume_ratio',
         'ann_date', 'new_quarter_eps', 'industry_name', 'industry_rps', 'hk_hold', 'pct_chg', 'p_change_min',
         'p_change_max', 'forecast').order_by('-cumulative_rank')
@@ -1223,7 +1621,7 @@ def evaluate(request):
 def monitor_detail(request):
     """行业板块强度细化"""
     index_code = request.GET.get('index_code')
-    cumulative_ranks = CumulativeRank.objects.filter(index_code=index_code, roe__gt=15, cumulative_rank__gt=79).values(
+    cumulative_ranks = CumulativeRank.objects.filter(index_code=index_code, cumulative_rank__gt=79).values(
         'code', 'name', 'eps', 'eps_stability', 'smr', 'period_date', 'rps', 'cumulative_rank', 'decline_range', 'volume_ratio',
         'ann_date', 'new_quarter_eps', 'industry_name', 'industry_rps', 'hk_hold', 'pct_chg', 'p_change_min',
         'p_change_max', 'forecast').order_by('-pct_chg')
