@@ -8,7 +8,7 @@ django-simple-captcha==0.5.12
 idna==2.8
 lxml==4.5.0
 msgpack==0.6.1
-numpy==1.16.2
+numpy==1.22.0
 pandas==0.24.2
 pandas-datareader==0.8.1
 Pillow==7.0.0
